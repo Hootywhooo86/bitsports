@@ -1,6 +1,7 @@
 package com.bit128.bitsports
 
 import android.content.Context
+import com.bit128.bitsports.alerts.AlertPrefs
 
 // Every look choice is the viewer's, saved on this device. Mirrors the
 // Customize sheet in index.html (localStorage "bitsports.prefs").
@@ -12,7 +13,24 @@ data class UiPrefs(
     val showScores: Boolean = true,
     val showNews: Boolean = true,
     val blinkLive: Boolean = true,
+    // GOAL moment: "lamp", "burst", "puck" or "text"; and the 8-bit horn.
+    val goalStyle: String = "lamp",
+    val goalSound: Boolean = true,
+    // Which game alerts to send.
+    val alertPregame: Boolean = true,
+    val alertGoals: Boolean = true,
+    val alertReplays: Boolean = true,
+    val alertPeriods: Boolean = true,
+    val alertRecap: Boolean = true,
+    val alertFinal: Boolean = true,
 )
+
+fun UiPrefs.alertPrefs() = AlertPrefs(
+    pregame = alertPregame, goals = alertGoals, replays = alertReplays,
+    periods = alertPeriods, recap = alertRecap, final = alertFinal,
+)
+
+val GOAL_STYLES: List<Pair<String, String>> = listOf("Lamp" to "lamp", "Burst" to "burst", "Puck" to "puck", "Text" to "text")
 
 // Light accents only, so black text on a filled button always reads. No red (that's LIVE).
 val ACCENTS: List<Pair<String, Long>> = listOf(
@@ -37,6 +55,14 @@ class PrefsStore(context: Context) {
             showScores = prefs.getBoolean("showScores", d.showScores),
             showNews = prefs.getBoolean("showNews", d.showNews),
             blinkLive = prefs.getBoolean("blinkLive", d.blinkLive),
+            goalStyle = prefs.getString("goalStyle", d.goalStyle) ?: d.goalStyle,
+            goalSound = prefs.getBoolean("goalSound", d.goalSound),
+            alertPregame = prefs.getBoolean("alertPregame", d.alertPregame),
+            alertGoals = prefs.getBoolean("alertGoals", d.alertGoals),
+            alertReplays = prefs.getBoolean("alertReplays", d.alertReplays),
+            alertPeriods = prefs.getBoolean("alertPeriods", d.alertPeriods),
+            alertRecap = prefs.getBoolean("alertRecap", d.alertRecap),
+            alertFinal = prefs.getBoolean("alertFinal", d.alertFinal),
         )
     }
 
@@ -49,6 +75,14 @@ class PrefsStore(context: Context) {
             .putBoolean("showScores", p.showScores)
             .putBoolean("showNews", p.showNews)
             .putBoolean("blinkLive", p.blinkLive)
+            .putString("goalStyle", p.goalStyle)
+            .putBoolean("goalSound", p.goalSound)
+            .putBoolean("alertPregame", p.alertPregame)
+            .putBoolean("alertGoals", p.alertGoals)
+            .putBoolean("alertReplays", p.alertReplays)
+            .putBoolean("alertPeriods", p.alertPeriods)
+            .putBoolean("alertRecap", p.alertRecap)
+            .putBoolean("alertFinal", p.alertFinal)
             .apply()
     }
 }
