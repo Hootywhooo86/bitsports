@@ -1,11 +1,17 @@
 name: Android APK
 
+# Tests, builds the family-signed release APK, and on a v* tag publishes it to Releases.
 on:
   push:
+    branches: ["**"]
+    tags: ["v*"]
     paths:
       - "android/**"
       - ".github/workflows/android-apk.yml"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -23,18 +29,41 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APK
+      - name: Decode family signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.FAMILY_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::FAMILY_KEYSTORE_* secrets are missing; release builds must be signed with the family key."
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/family.jks"
+          echo "FAMILY_KEYSTORE_PATH=$RUNNER_TEMP/family.jks" >> "$GITHUB_ENV"
+
+      - name: Test and build
+        env:
+          FAMILY_KEYSTORE_PASSWORD: ${{ secrets.FAMILY_KEYSTORE_PASSWORD }}
+          FAMILY_KEY_ALIAS: ${{ secrets.FAMILY_KEY_ALIAS }}
+          FAMILY_KEY_PASSWORD: ${{ secrets.FAMILY_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --console=plain
-
-      - name: Name the APK by version
-        run: |
+          ./gradlew testDebugUnitTest assembleRelease --console=plain
           VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
-          mv app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/bitsports-v${VERSION}-debug.apk"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          cp app/build/outputs/apk/release/app-release.apk "bitsports-v${VERSION}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: bitsports-debug-apk
-          path: android/app/build/outputs/apk/debug/bitsports-v*-debug.apk
+          name: bitsports-apk
+          path: android/bitsports-v*.apk
           if-no-files-found: error
+
+      - name: Publish to Releases
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: bitsports ${{ github.ref_name }}
+          prerelease: true
+          files: android/bitsports-v*.apk
+          body_path: RELEASE_NOTES.md

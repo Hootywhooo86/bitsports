@@ -11,13 +11,27 @@ android {
         applicationId = "com.bit128.bitsports"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
+    }
+
+    // Release builds are signed with the 128bit family key (the Bitcall release key), so the
+    // family apps trust each other and updates install in place. CI decodes the FAMILY_* secrets;
+    // without them a local release build falls back to the debug key.
+    val keystore = System.getenv("FAMILY_KEYSTORE_PATH")
+    signingConfigs {
+        if (keystore != null) create("release") {
+            storeFile = file(keystore)
+            storePassword = System.getenv("FAMILY_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("FAMILY_KEY_ALIAS")
+            keyPassword = System.getenv("FAMILY_KEY_PASSWORD")
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 
@@ -27,6 +41,10 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
 
     buildFeatures {
@@ -53,4 +71,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }
