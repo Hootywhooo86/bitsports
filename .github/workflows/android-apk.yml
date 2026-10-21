@@ -40,6 +40,9 @@ jobs:
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/family.jks"
           echo "FAMILY_KEYSTORE_PATH=$RUNNER_TEMP/family.jks" >> "$GITHUB_ENV"
 
+      - name: Version code
+        run: echo "BITSPORTS_VERSION_CODE=$((100 + ${{ github.run_number }}))" >> "$GITHUB_ENV"
+
       - name: Test and build
         env:
           FAMILY_KEYSTORE_PASSWORD: ${{ secrets.FAMILY_KEYSTORE_PASSWORD }}

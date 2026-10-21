@@ -11,7 +11,8 @@ android {
         applicationId = "com.bit128.bitsports"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
+        // CI passes 100 + run number so every build installs over the last one.
+        versionCode = (System.getenv("BITSPORTS_VERSION_CODE") ?: "3").toInt()
         versionName = "0.3.0"
     }
 
