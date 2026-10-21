@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>bitsports — Scores, but chunkier.</title>
+<meta name="description" content="bitsports is the 128bit family's pixel sports app: live scores, standings and game-day quests for your teams — NHL first, every league pixelated. Coming soon.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0b16;
+    --panel:#141428;
+    --green:#4ade80;
+    --green-deep:#15803d;
+    --orange:#ff9f1c;
+    --teal:#2dd4bf;
+    --red:#ff5d5d;
+    --ink:#f4f1ff;
+    --muted:#9a97b8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    overflow-x:hidden;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:radial-gradient(rgba(74,222,128,.08) 1px, transparent 1px);
+    background-size:22px 22px;
+  }
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px;position:relative;z-index:1}
+  .pixel{font-family:'Press Start 2P',monospace}
+  /* ---------- nav ---------- */
+  nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0}
+  .logo{display:flex;align-items:center;gap:12px;font-family:'Press Start 2P',monospace;font-size:15px}
+  .logo-mark{
+    width:34px;height:34px;background:var(--green);display:grid;place-items:center;font-size:18px;
+    box-shadow:0 4px 0 var(--green-deep), 4px 0 0 var(--green-deep), -4px 0 0 var(--green-deep), 0 -4px 0 var(--green-deep);
+    image-rendering:pixelated;
+  }
+  .badge{
+    font-family:'Press Start 2P',monospace;font-size:9px;color:var(--bg);background:var(--orange);
+    padding:8px 10px;letter-spacing:1px;
+    box-shadow:0 4px 0 #a05e00;
+  }
+  /* ---------- hero ---------- */
+  header{text-align:center;padding:60px 0 40px}
+  .eyebrow{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--green);letter-spacing:2px;margin-bottom:26px}
+  h1{
+    font-family:'Press Start 2P',monospace;
+    font-size:clamp(24px,6vw,50px);line-height:1.35;margin-bottom:26px;
+    text-shadow:0 4px 0 #1a1a33, 4px 0 0 #1a1a33;
+  }
+  h1 .g{color:var(--green)} h1 .o{color:var(--orange)}
+  .sub{color:var(--muted);font-size:18px;max-width:620px;margin:0 auto 20px;line-height:1.6}
+  .try{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--teal);letter-spacing:1px;margin-bottom:26px}
+  /* ---------- scoreboard mock ---------- */
+  .board{
+    width:340px;max-width:92vw;margin:0 auto 14px;background:#05050d;
+    border:4px solid #2c2c52;padding:12px;
+    box-shadow:8px 8px 0 #08081a;text-align:left;
+  }
+  .tabs{display:flex;gap:6px;margin-bottom:12px}
+  .tabs button{
+    flex:1;font-family:'Press Start 2P',monospace;font-size:8px;padding:9px 0;cursor:pointer;
+    background:var(--panel);color:var(--muted);border:3px solid #26264a;
+    box-shadow:3px 3px 0 #08081a;
+  }
+  .tabs button.on{background:var(--green-deep);color:#eafff1;border-color:var(--green)}
+  .game{
+    background:var(--panel);border:3px solid #26264a;padding:12px 13px;margin-bottom:10px;
+    box-shadow:4px 4px 0 #08081a;cursor:pointer;transition:border-color .1s;
+  }
+  .game:hover{border-color:var(--green)}
+  .game .row{display:flex;align-items:center;font-size:14px;padding:3px 0}
+  .game .tm{width:52px;font-weight:800;letter-spacing:.5px}
+  .game .rec{color:var(--muted);font-size:11px;flex:1}
+  .game .sc{font-family:'Press Start 2P',monospace;font-size:14px;min-width:26px;text-align:right}
+  .game .sc.win{color:var(--green)}
+  .game .status{
+    display:flex;justify-content:space-between;align-items:center;margin-top:8px;
+    font-family:'Press Start 2P',monospace;font-size:7px;color:var(--muted);letter-spacing:1px;
+  }
+  .live{color:var(--red)}
+  .live i{display:inline-block;width:7px;height:7px;background:var(--red);margin-right:5px;animation:blink 1.1s steps(2) infinite}
+  @keyframes blink{50%{opacity:.1}}
+  .detail{display:none;border-top:3px dashed #26264a;margin-top:9px;padding-top:9px;font-size:12px;color:var(--muted);line-height:1.9}
+  .game.open .detail{display:block}
+  .detail b{color:var(--ink)}
+  .questbar{
+    border:3px solid var(--orange);background:rgba(255,159,28,.07);padding:10px 12px;
+    font-size:12px;line-height:1.6;color:var(--ink);
+  }
+  .questbar .pixel{font-size:8px;color:var(--orange);display:block;margin-bottom:5px;letter-spacing:1px}
+  .toast{
+    min-height:20px;text-align:center;font-family:'Press Start 2P',monospace;
+    font-size:9px;color:var(--green);margin:10px 0 30px;letter-spacing:1px;line-height:1.8;
+  }
+  /* ---------- waitlist form ---------- */
+  form.waitlist{display:flex;gap:0;max-width:480px;margin:0 auto;flex-wrap:wrap;justify-content:center}
+  form.waitlist input{
+    flex:1 1 240px;background:var(--panel);border:3px solid var(--green);color:var(--ink);
+    padding:14px 16px;font-size:15px;font-family:'Inter',sans-serif;outline:none;min-width:0;
+  }
+  form.waitlist input:focus{border-color:var(--orange)}
+  form.waitlist button{
+    font-family:'Press Start 2P',monospace;font-size:11px;background:var(--orange);color:#201100;
+    border:3px solid var(--orange);padding:14px 20px;cursor:pointer;
+    box-shadow:0 5px 0 #a05e00;transition:transform .08s, box-shadow .08s;
+  }
+  form.waitlist button:hover{transform:translateY(2px);box-shadow:0 3px 0 #a05e00}
+  form.waitlist button:active{transform:translateY(5px);box-shadow:0 0 0 #a05e00}
+  .form-note{margin-top:14px;font-size:13px;color:var(--muted)}
+  .form-ok{margin-top:14px;font-size:14px;color:var(--teal);font-weight:600;display:none}
+  /* ---------- features ---------- */
+  section{padding:56px 0}
+  h2{font-family:'Press Start 2P',monospace;font-size:clamp(16px,3.4vw,24px);text-align:center;margin-bottom:40px;line-height:1.5}
+  h2 .o{color:var(--orange)}
+  .fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:18px}
+  .card{
+    background:var(--panel);border:3px solid #26264a;padding:26px 22px;
+    box-shadow:6px 6px 0 #08081a;transition:transform .12s, border-color .12s;
+  }
+  .card:hover{transform:translateY(-4px);border-color:var(--green)}
+  .card .ico{font-size:30px;margin-bottom:16px;display:block}
+  .card h3{font-family:'Press Start 2P',monospace;font-size:12px;margin-bottom:12px;color:var(--green);line-height:1.6}
+  .card p{color:var(--muted);font-size:14px;line-height:1.65}
+  /* ---------- strip ---------- */
+  .strip{
+    background:linear-gradient(180deg,#171732,#101024);
+    border-top:3px solid var(--green);border-bottom:3px solid var(--green);
+    text-align:center;padding:44px 20px;
+  }
+  .strip .pixel{font-size:12px;color:var(--green);letter-spacing:2px;display:block;margin-bottom:16px;line-height:1.8}
+  .strip p{color:var(--muted);max-width:560px;margin:0 auto;line-height:1.7;font-size:15px}
+  /* ---------- footer ---------- */
+  footer{border-top:3px solid #26264a;padding:34px 0;text-align:center;color:var(--muted);font-size:13px;line-height:2}
+  footer .fam{font-family:'Press Start 2P',monospace;font-size:9px;letter-spacing:1px;color:var(--ink)}
+  footer .fam span{color:var(--green)}
+  @media (max-width:560px){
+    form.waitlist button{flex:1 1 100%;margin-top:10px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav>
+    <div class="logo"><span class="logo-mark">🏒</span>bitsports</div>
+    <span class="badge">COMING SOON</span>
+  </nav>
+
+  <header>
+    <div class="eyebrow">FROM THE 128BIT FAMILY</div>
+    <h1><span class="g">SCORES,</span><br><span class="o">BUT CHUNKIER.</span></h1>
+    <p class="sub">bitsports is the 128bit family's pixel sports app — live scores, standings and game-day quests for the teams you actually care about. NHL first. Every league pixelated.</p>
+    <p class="try">▼ TRY IT — THE OILERS GAME IS LIVE · TAP A GAME ▼</p>
+
+    <!-- Interactive pixel scoreboard mock -->
+    <div class="board" aria-label="Interactive bitsports scoreboard mock">
+      <div class="tabs" id="leagueTabs">
+        <button class="on" type="button">NHL</button>
+        <button type="button">NFL</button>
+        <button type="button">MLB</button>
+        <button type="button">NBA</button>
+      </div>
+
+      <div class="game open" id="liveGame">
+        <div class="row"><span class="tm">EDM</span><span class="rec">Oilers · 6-2-1</span><span class="sc win" id="homeScore">3</span></div>
+        <div class="row"><span class="tm">CGY</span><span class="rec">Flames · 3-6-0</span><span class="sc" id="awayScore">2</span></div>
+        <div class="status"><span class="live"><i></i>LIVE</span><span id="gameClock">3RD · 12:47</span><span>⭐ YOUR TEAM</span></div>
+        <div class="detail" id="liveDetail">
+          <b>Scoring:</b> McDavid (8), Draisaitl (9), Hyman (5) — EDM<br>
+          Tkachuk-less and still feisty: Kadri (6), Huberdeau (4) — CGY<br>
+          <b>Next:</b> EDM @ VAN · Sat 8:00 PM MT
+        </div>
+      </div>
+
+      <div class="game">
+        <div class="row"><span class="tm">TOR</span><span class="rec">Maple Leafs · 5-3-1</span><span class="sc win">4</span></div>
+        <div class="row"><span class="tm">BOS</span><span class="rec">Bruins · 4-5-0</span><span class="sc">1</span></div>
+        <div class="status"><span>FINAL</span><span>Matthews 2G · 1A</span><span>★</span></div>
+        <div class="detail"><b>Final:</b> TOR 4 — BOS 1<br><b>Three stars:</b> Matthews, Nylander, Stolarz<br><b>Next:</b> TOR vs MTL · Sat 5:00 PM MT</div>
+      </div>
+
+      <div class="game">
+        <div class="row"><span class="tm">WPG</span><span class="rec">Jets · 7-1-0</span><span class="sc">—</span></div>
+        <div class="row"><span class="tm">COL</span><span class="rec">Avalanche · 5-2-2</span><span class="sc">—</span></div>
+        <div class="status"><span>TONIGHT</span><span>7:00 PM MT</span><span>★</span></div>
+        <div class="detail"><b>Puck drop:</b> 7:00 PM MT · TSN3<br><b>Storyline:</b> best record in the West vs. MacKinnon<br><b>Quest:</b> check in at puck drop for +10 XP</div>
+      </div>
+
+      <div class="questbar">
+        <span class="pixel">⚔️ TODAY'S QUEST</span>
+        Battle of Alberta night: check in during the 3rd period to bank <b>+25 XP</b> and keep your 9-day game streak alive.
+      </div>
+    </div>
+
+    <div class="toast" id="toast">🚨 GAME ON — EDM LEADS THE BATTLE OF ALBERTA</div>
+
+    <!-- WAITLIST: create a free form at formspree.io and replace YOUR_FORM_ID below, then it just works. -->
+    <form class="waitlist" id="waitlist" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+      <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address">
+      <input type="hidden" name="_subject" value="bitsports waitlist signup">
+      <button type="submit">JOIN THE WAITLIST</button>
+    </form>
+    <p class="form-note">Early access + a pixel avatar of your team's mascot. No spam, ever.</p>
+    <p class="form-ok" id="formOk">✓ You're on the quest board. See you at puck drop.</p>
+  </header>
+
+  <section>
+    <h2>GAME DAY, <span class="o">PIXELATED</span></h2>
+    <div class="fgrid">
+      <div class="card">
+        <span class="ico">📟</span>
+        <h3>LIVE PIXEL SCOREBOARD</h3>
+        <p>Scores, clocks and standings in big chunky digits — readable across the room, across the rink, across the bar. Your teams pinned to the top, always.</p>
+      </div>
+      <div class="card">
+        <span class="ico">🔔</span>
+        <h3>ALERTS THAT MATTER</h3>
+        <p>Goals, lead changes, one-goal games in the third — not 40 push notifications about a Tuesday in November. You set the noise level; bitsports respects it.</p>
+      </div>
+      <div class="card">
+        <span class="ico">⚔️</span>
+        <h3>GAME-DAY QUESTS</h3>
+        <p>Check in at puck drop, ride a win streak, survive an overtime. 128bitlife issues the quests; bitsports tracks the games. Watching your team finally pays XP.</p>
+      </div>
+      <div class="card">
+        <span class="ico">🏆</span>
+        <h3>FANTASY, NEXT DOOR</h3>
+        <p>bitsports is the scoreboard; 128bitfantasy is the GM desk. Your fantasy players get a ⭐ right on the score line, so you always know which game matters twice.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="strip">
+  <span class="pixel">THE SECOND SCREEN DESERVES BETTER THAN A SPREADSHEET</span>
+  <p>Score apps all look the same: tiny grey text and an ad for a sportsbook. bitsports makes checking the score feel like checking the high-score table — because it is one.</p>
+</div>
+
+<div class="wrap">
+  <section class="cta" style="text-align:center">
+    <h2>CLAIM YOUR <span class="o">SEAT</span></h2>
+    <p style="color:var(--muted);margin-bottom:26px;line-height:1.7">Join the waitlist for early access, beta builds,<br>and the first game-day quest pack.</p>
+    <form class="waitlist" id="waitlist2" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+      <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address">
+      <input type="hidden" name="_subject" value="bitsports waitlist signup">
+      <button type="submit">JOIN THE WAITLIST</button>
+    </form>
+    <p class="form-ok" id="formOk2">✓ You're on the quest board. See you at puck drop.</p>
+  </section>
+
+  <footer>
+    <div class="fam"><span>bit</span>sports · <span>128bit</span>fantasy · <span>bit</span>launcher · <span>bit</span>messenger · <span>bit</span>call · <span>128bit</span>fit · <span>128bit</span>play · <span>128bit</span>trip · <span>128bit</span>gold · <span>128bit</span>music · <span>128bit</span>tracker · <span>128bit</span>life</div>
+    bitsports — part of the 128bit family<br>© 2026 128bit
+  </footer>
+</div>
+
+<script>
+  // League tabs: just switch the active tab in the mock
+  document.querySelectorAll('#leagueTabs button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('#leagueTabs button').forEach(function(b){ b.classList.remove('on'); });
+      btn.classList.add('on');
+      toast('📟 ' + btn.textContent + ' BOARD — MOCK DATA, SAME PIXELS');
+    });
+  });
+
+  // Tap a game to expand its detail panel
+  document.querySelectorAll('.game').forEach(function(game){
+    game.addEventListener('click', function(){ game.classList.toggle('open'); });
+  });
+
+  var toastEl = document.getElementById('toast');
+  var toastTimer = null;
+  function toast(msg){
+    toastEl.textContent = msg;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.innerHTML = '&nbsp;'; }, 4200);
+  }
+
+  // Simulated live clock on the Battle of Alberta: counts down, and
+  // Edmonton scores once to show off the goal toast.
+  var clockEl = document.getElementById('gameClock');
+  var total = 12 * 60 + 47, scored = false;
+  setInterval(function(){
+    if (total > 0) total--;
+    var m = Math.floor(total / 60), s = total % 60;
+    clockEl.textContent = '3RD · ' + m + ':' + (s < 10 ? '0' : '') + s;
+    if (!scored && total <= 12 * 60 + 20){
+      scored = true;
+      document.getElementById('homeScore').textContent = '4';
+      document.getElementById('liveDetail').innerHTML =
+        '<b>Scoring:</b> McDavid (8), Draisaitl (9), Hyman (5), Bouchard (3) — EDM<br>' +
+        'Kadri (6), Huberdeau (4) — CGY<br><b>Next:</b> EDM @ VAN · Sat 8:00 PM MT';
+      toast('🚨 GOAL — BOUCHARD FROM THE POINT · EDM 4–2 · +5 XP');
+    }
+    if (total === 0){ clockEl.textContent = '3RD · 0:00'; }
+  }, 1000);
+
+  // Waitlist: if the Formspree ID hasn't been set yet, confirm locally.
+  document.querySelectorAll('form.waitlist').forEach(function(form, i){
+    form.addEventListener('submit', function(e){
+      if (form.action.indexOf('YOUR_FORM_ID') !== -1){
+        e.preventDefault();
+        var ok = document.getElementById(i === 0 ? 'formOk' : 'formOk2');
+        if (ok) ok.style.display = 'block';
+        form.querySelector('input[type=email]').value = '';
+      }
+    });
+  });
+</script>
+</body>
+</html>
