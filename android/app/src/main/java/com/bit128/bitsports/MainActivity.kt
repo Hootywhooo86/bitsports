@@ -1,17 +1,22 @@
 package com.bit128.bitsports
 
+import android.Manifest
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,140 +31,84 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
-
-// 128bit family tokens — same as 128bitfit/prototype/app-shell.html and index.html.
-// Monochrome chrome; colour only ever means data (team crests, LIVE).
-private val Ground = Color(0xFF000000)
-private val Card = Color(0xFF0D0D0D)
-private val Card2 = Color(0xFF171717)
-private val Card3 = Color(0xFF212121)
-private val Line = Color(0xFF242424)
-private val Line2 = Color(0xFF3A3A3A)
-private val TextInk = Color(0xFFFFFFFF)
-private val Muted = Color(0xFF8C8C8C)
-private val Dim = Color(0xFF6B6B6B)
-private val Live = Color(0xFFFF4D6D)
-private val Warn = Color(0xFFFFD95E)
-
-private val Pixel = FontFamily(
-    Font(R.font.silkscreen_regular, FontWeight.Normal),
-    Font(R.font.silkscreen_bold, FontWeight.Bold),
-)
-
-private val LocalUi = staticCompositionLocalOf { UiPrefs() }
-private val CardShape = RoundedCornerShape(12.dp)
+import com.bit128.bitsports.alerts.AlertNotifier
+import com.bit128.bitsports.alerts.AlertScheduler
+import com.bit128.bitsports.nhl.Game
+import com.bit128.bitsports.nhl.NhlTeams
+import com.bit128.bitsports.ui.GameScreen
+import com.bit128.bitsports.ui.GoalMoment
+import com.bit128.bitsports.ui.ScoreFormat
 
 class MainActivity : ComponentActivity() {
+    /** A game to open, from a notification tap. The screen picks it up once the view model exists. */
+    private var pendingGame by mutableStateOf<Long?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AlertNotifier.ensureChannels(applicationContext)
+        AlertScheduler.refresh(applicationContext)
+        pendingGame = gameFrom(intent)
         val store = TeamsStore(applicationContext)
         val prefsStore = PrefsStore(applicationContext)
         setContent {
             val vm: BitsportsViewModel = viewModel(factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T = BitsportsViewModel(store, prefsStore) as T
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    BitsportsViewModel(store, prefsStore, applicationContext) as T
             })
+            LaunchedEffect(pendingGame) {
+                pendingGame?.let { vm.openGame(it); pendingGame = null }
+            }
             val ui = vm.ui
             val density = LocalDensity.current
             val scaled = if (ui.largeText) Density(density.density, density.fontScale * 1.15f) else density
             MaterialTheme(colorScheme = darkColorScheme(background = Ground, surface = Card, primary = Color(ui.accent))) {
                 CompositionLocalProvider(LocalUi provides ui, LocalDensity provides scaled) {
                     Surface(color = Ground, modifier = Modifier.fillMaxSize()) {
-                        BitsportsScreen(vm)
+                        val open = vm.openGameId
+                        if (open != null) {
+                            BackHandler { vm.closeGame() }
+                            GameScreen(vm, onBack = { vm.closeGame() })
+                        } else {
+                            BitsportsScreen(vm)
+                        }
+                        vm.goalMoment?.let { g ->
+                            GoalMoment(g, ui.goalStyle, ui.goalSound, onDone = { vm.goalMoment = null })
+                        }
                     }
                 }
             }
         }
     }
-}
 
-// ---------- shared pieces ----------
-
-@Composable
-fun Heading(text: String, size: TextUnit = 13.sp, color: Color = TextInk) {
-    val plain = LocalUi.current.plainHeadings
-    Text(
-        text,
-        color = color,
-        fontSize = size,
-        fontFamily = if (plain) FontFamily.Default else Pixel,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = if (plain) 0.sp else 1.5.sp,
-    )
-}
-
-@Composable
-fun Label(text: String, color: Color = Muted) {
-    val plain = LocalUi.current.plainHeadings
-    Text(
-        text, color = color, fontSize = 11.sp,
-        fontFamily = if (plain) FontFamily.Default else Pixel,
-        fontWeight = if (plain) FontWeight.SemiBold else FontWeight.Normal,
-        letterSpacing = if (plain) 0.sp else 1.sp,
-    )
-}
-
-@Composable
-fun SectionHead(title: String, note: String) {
-    Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Heading(title)
-        Spacer(Modifier.width(12.dp))
-        Text(note, color = Muted, fontSize = 12.sp, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        gameFrom(intent)?.let { pendingGame = it }
     }
+
+    private fun gameFrom(intent: Intent?): Long? =
+        intent?.getLongExtra(AlertNotifier.EXTRA_GAME, -1L)?.takeIf { it > 0 }
 }
 
-@Composable
-fun CardBox(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        modifier.fillMaxWidth().clip(CardShape).background(Card).border(1.dp, Line, CardShape),
-        content = content,
-    )
-}
-
-/** The bitsports mark: a pixel puck in flight, on the same 11x6 grid as index.html. */
-@Composable
-fun PuckMark(color: Color, cell: Dp = 3.dp) {
-    val cells = listOf(
-        intArrayOf(6, 0, 4, 1), intArrayOf(5, 1, 6, 4), intArrayOf(6, 5, 4, 1),
-        intArrayOf(0, 1, 3, 1), intArrayOf(1, 3, 3, 1),
-    )
-    Canvas(Modifier.size(cell * 11, cell * 6)) {
-        val c = cell.toPx()
-        cells.forEach { (x, y, w, h) ->
-            drawRect(color, topLeft = Offset(x * c, y * c), size = Size(w * c, h * c))
-        }
-    }
-}
-
-@Composable
-fun Crest(name: String, size: Dp) {
-    val (c1, c2) = teamColors(name)
-    Row(Modifier.size(size).clip(RoundedCornerShape(3.dp))) {
-        Box(Modifier.weight(1f).fillMaxHeight().background(c1))
-        Box(Modifier.weight(1f).fillMaxHeight().background(c2))
-    }
-}
+internal fun teamName(abbrev: String) = NhlTeams.byAbbrev(abbrev)?.fullName ?: abbrev
 
 // ---------- screen ----------
 
@@ -177,7 +126,7 @@ fun BitsportsScreen(vm: BitsportsViewModel) {
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(Modifier.height(24.dp))
-            TitleRow()
+            TitleRow(vm)
             if (ui.showScores) {
                 Spacer(Modifier.height(28.dp))
                 ScoresSection(vm)
@@ -227,74 +176,95 @@ fun TopBar(onCustomize: () -> Unit) {
     }
 }
 
-// Sample games only — bitsports has no live score provider wired in yet (said in the section header).
-private data class SampleGame(
-    val home: String, val away: String, val hs: Int?, val aws: Int?,
-    val status: String, val clock: String = "", val sport: String = "NHL",
-)
-private val SAMPLE_GAMES = listOf(
-    SampleGame("Edmonton Oilers", "Calgary Flames", 4, 2, "live", "3RD · 8:12"),
-    SampleGame("Toronto Maple Leafs", "Boston Bruins", 4, 1, "final"),
-    SampleGame("Winnipeg Jets", "Colorado Avalanche", null, null, "7:00 PM MT"),
-)
-private fun shortName(n: String) = n.split(" ").last()
-
+/** One sentence about tonight, led by your team's game. */
 @Composable
-fun TitleRow() {
+fun TitleRow(vm: BitsportsViewModel) {
     Heading("TODAY", size = 20.sp)
     Spacer(Modifier.height(10.dp))
-    val lead = SAMPLE_GAMES.first { it.status == "live" }
-    val hi = maxOf(lead.hs!!, lead.aws!!)
-    val lo = minOf(lead.hs, lead.aws)
-    val up = if (lead.hs >= lead.aws) lead.home else lead.away
-    val dn = if (up == lead.home) lead.away else lead.home
-    val live = SAMPLE_GAMES.count { it.status == "live" }
-    val fin = SAMPLE_GAMES.count { it.status == "final" }
-    val later = SAMPLE_GAMES.size - live - fin
+    val games = vm.orderedGames()
+    val live = games.count { it.state.isLive }
+    val fin = games.count { it.state.isOver }
+    val later = games.size - live - fin
+    val lead = games.firstOrNull()
     Text(
         buildAnnotatedString {
-            withStyle(SpanStyle(color = TextInk, fontWeight = FontWeight.SemiBold)) {
-                append("${shortName(up)} lead the ${shortName(dn)} $hi–$lo")
+            when {
+                !vm.gamesLoaded -> append("Checking tonight's NHL games…")
+                games.isEmpty() -> append("No NHL games today.")
+                else -> {
+                    if (lead != null) {
+                        withStyle(SpanStyle(color = TextInk, fontWeight = FontWeight.SemiBold)) { append(headline(lead)) }
+                        append(". ")
+                    }
+                    append("$live live, $fin final, $later later.")
+                }
             }
-            append(", ${lead.clock.substringAfter(" · ")} left in the 3rd. $live live, $fin final, $later later tonight.")
         },
         color = Muted, fontSize = 16.sp, lineHeight = 23.sp,
     )
 }
 
-@Composable
-fun ScoresSection(vm: BitsportsViewModel) {
-    SectionHead("SCORES", "Sample games · live scores aren't wired in yet")
-    val followed = vm.teams.map { slugify(it.team) }.toSet()
-    fun mine(g: SampleGame) = slugify(g.home) in followed || slugify(g.away) in followed
-    val rank = mapOf("live" to 0, "final" to 1)
-    val games = SAMPLE_GAMES.sortedWith(compareBy<SampleGame>({ if (mine(it)) 0 else 1 }, { rank[it.status] ?: 2 }))
-    games.forEachIndexed { i, g ->
-        GameCard(g, hero = i == 0, followed = followed)
-        Spacer(Modifier.height(10.dp))
+private fun headline(g: Game): String {
+    val a = com.bit128.bitsports.alerts.AlertCopy.nick(g.away.abbrev)
+    val h = com.bit128.bitsports.alerts.AlertCopy.nick(g.home.abbrev)
+    val as_ = g.away.score ?: 0
+    val hs = g.home.score ?: 0
+    return when {
+        !g.state.isLive && !g.state.isOver -> "$a at $h, ${ScoreFormat.status(g).lowercase()}"
+        as_ == hs -> "$a and $h tied $as_–$hs" + if (g.state.isOver) "" else ", ${ScoreFormat.status(g).substringAfter("· ")}"
+        else -> {
+            val (up, dn) = if (as_ > hs) a to h else h to a
+            val verb = if (g.state.isOver) "beat" else "lead"
+            "$up $verb $dn ${maxOf(as_, hs)}–${minOf(as_, hs)}"
+        }
     }
 }
 
 @Composable
-private fun GameCard(g: SampleGame, hero: Boolean, followed: Set<String>) {
+fun ScoresSection(vm: BitsportsViewModel) {
+    val stale = vm.gamesFetchedAt?.let { com.bit128.bitsports.alerts.AlertPlanner.staleLabel(it, vm.now) }
+    SectionHead("SCORES", vm.gamesError ?: stale ?: "NHL · tap a game", noteColor = if (vm.gamesError != null) Warn else Muted)
+    val followed = vm.followedAbbrevs()
+    val games = vm.orderedGames()
+    when {
+        !vm.gamesLoaded -> CardBox { InfoLine("Loading scores…") }
+        games.isEmpty() && vm.gamesError != null -> CardBox {
+            InfoLine("Scores will show here once the NHL feed answers.")
+            OutlinedButton(
+                onClick = { vm.refreshGames() },
+                border = BorderStroke(1.dp, Line2), shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.padding(start = 16.dp, bottom = 16.dp),
+            ) { Text("Retry", color = TextInk) }
+        }
+        games.isEmpty() -> CardBox { InfoLine("No NHL games today.") }
+        else -> games.forEachIndexed { i, g ->
+            GameCard(g, hero = i == 0, followed = followed, onClick = { vm.openGame(g.id) })
+            Spacer(Modifier.height(10.dp))
+        }
+    }
+}
+
+@Composable
+private fun GameCard(g: Game, hero: Boolean, followed: Set<String>, onClick: () -> Unit) {
     val ui = LocalUi.current
     val big = hero && !ui.compactScores
-    val hasScore = g.status == "live" || g.status == "final"
-    CardBox {
+    val hasScore = g.state.isLive || g.state.isOver
+    CardBox(Modifier.clip(CardShape).clickable(onClick = onClick)) {
         Column(Modifier.padding(horizontal = 18.dp, vertical = if (ui.compactScores) 10.dp else 16.dp)) {
             Row(Modifier.fillMaxWidth().padding(bottom = if (ui.compactScores) 4.dp else 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (g.status == "live") {
+                val status = ScoreFormat.status(g)
+                if (g.state.isLive) {
                     LiveMarker()
                     Spacer(Modifier.weight(1f))
-                    Label(g.clock)
+                    Label(status.substringAfter("· ", status))
                 } else {
-                    Label(if (g.status == "final") "FINAL" else "TONIGHT")
+                    Label(status)
                     Spacer(Modifier.weight(1f))
-                    Label(if (g.status == "final") g.sport else g.status.uppercase())
+                    Label(if (hasScore) "SOG ${g.away.sog ?: 0}–${g.home.sog ?: 0}" else "NHL")
                 }
             }
-            ScoreLine(g.home, g.hs, g.aws, hasScore, big, slugify(g.home) in followed)
-            ScoreLine(g.away, g.aws, g.hs, hasScore, big, slugify(g.away) in followed)
+            ScoreLine(g.away.abbrev, g.away.score, g.home.score, hasScore, big, g.away.abbrev in followed)
+            ScoreLine(g.home.abbrev, g.home.score, g.away.score, hasScore, big, g.home.abbrev in followed)
         }
     }
 }
@@ -312,9 +282,10 @@ fun LiveMarker() {
 }
 
 @Composable
-private fun ScoreLine(name: String, pts: Int?, other: Int?, hasScore: Boolean, big: Boolean, mine: Boolean) {
+private fun ScoreLine(abbrev: String, pts: Int?, other: Int?, hasScore: Boolean, big: Boolean, mine: Boolean) {
     val ui = LocalUi.current
-    val losing = hasScore && pts!! < other!!
+    val name = teamName(abbrev)
+    val losing = hasScore && (pts ?: 0) < (other ?: 0)
     Row(
         Modifier.fillMaxWidth().heightIn(min = if (ui.compactScores) 36.dp else if (big) 56.dp else 44.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -334,7 +305,7 @@ private fun ScoreLine(name: String, pts: Int?, other: Int?, hasScore: Boolean, b
             Spacer(Modifier.width(10.dp))
         }
         Text(
-            if (hasScore) pts.toString() else "–",
+            if (hasScore) (pts ?: 0).toString() else "–",
             color = if (!hasScore || losing) Dim else TextInk,
             fontFamily = Pixel,
             fontSize = if (ui.compactScores) 20.sp else if (big) 36.sp else 26.sp,
@@ -414,9 +385,10 @@ fun TeamsSection(vm: BitsportsViewModel) {
                 Text(vm.addMessage, color = Warn, fontSize = 13.sp)
             }
 
-            // One-tap adds from today's games, so an empty screen is one tap from useful.
-            val picks = SAMPLE_GAMES.flatMap { listOf(it.home to it.sport, it.away to it.sport) }
-                .filter { (n, _) -> vm.teams.none { slugify(it.team) == slugify(n) } }
+            // One-tap adds from today's real games, so an empty screen is one tap from useful.
+            val picks = vm.orderedGames().flatMap { listOf(teamName(it.away.abbrev), teamName(it.home.abbrev)) }
+                .distinct()
+                .filter { n -> vm.teams.none { slugify(it.team) == slugify(n) } }
                 .take(4)
             if (picks.isNotEmpty() && vm.countFor("NHL") < MAX_PER_SPORT) {
                 Spacer(Modifier.height(16.dp))
@@ -429,13 +401,13 @@ fun TeamsSection(vm: BitsportsViewModel) {
                 Spacer(Modifier.height(10.dp))
                 picks.chunked(2).forEach { pair ->
                     Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        pair.forEach { (n, s) ->
+                        pair.forEach { n ->
                             Row(
                                 Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(10.dp))
                                     .border(1.dp, Line2, RoundedCornerShape(10.dp))
-                                    .clickable { vm.addTeam(n, s) }
+                                    .clickable { vm.addTeam(n, "NHL") }
                                     .heightIn(min = 44.dp)
                                     .padding(horizontal = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -527,7 +499,7 @@ fun Footer() {
     Spacer(Modifier.height(32.dp))
     Text("BITSPORTS", color = TextInk, fontFamily = Pixel, fontWeight = FontWeight.Bold, fontSize = 40.sp, letterSpacing = 2.sp)
     Spacer(Modifier.height(16.dp))
-    Text("Part of the 128bit family. Your teams stay on this device. Nothing is synced.", color = Muted, fontSize = 13.sp)
+    Text("Part of the 128bit family. Your teams stay on this device. Scores from the NHL's public feed.", color = Muted, fontSize = 13.sp)
     Spacer(Modifier.height(48.dp))
 }
 
@@ -536,6 +508,11 @@ fun Footer() {
 @Composable
 fun CustomizeSheet(vm: BitsportsViewModel) {
     val ui = vm.ui
+    val ctx = LocalContext.current
+    fun set(p: UiPrefs) {
+        vm.updateUi(p)
+        AlertScheduler.refresh(ctx)
+    }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 32.dp)) {
         Heading("CUSTOMIZE", size = 14.sp)
         Spacer(Modifier.height(8.dp))
@@ -565,6 +542,27 @@ fun CustomizeSheet(vm: BitsportsViewModel) {
         Option("Headings", "Pixel type like the rest of 128bit, or plain.") {
             Segmented(listOf("Pixel", "Plain"), if (ui.plainHeadings) 1 else 0) { vm.updateUi(ui.copy(plainHeadings = it == 1)) }
         }
+        Option("Goal moment", "What fills the screen when your team scores. Also used for the goal notification art.") {
+            Segmented(GOAL_STYLES.map { it.first }, GOAL_STYLES.indexOfFirst { it.second == ui.goalStyle }.coerceAtLeast(0)) {
+                vm.updateUi(ui.copy(goalStyle = GOAL_STYLES[it].second))
+            }
+            Spacer(Modifier.height(4.dp))
+            ToggleRow("8-bit goal horn", ui.goalSound) { vm.updateUi(ui.copy(goalSound = it)) }
+            OutlinedButton(
+                onClick = { vm.previewGoal() },
+                border = BorderStroke(1.dp, Line2), shape = RoundedCornerShape(11.dp),
+                modifier = Modifier.fillMaxWidth().height(44.dp),
+            ) { Text("Preview", color = TextInk, fontWeight = FontWeight.SemiBold) }
+        }
+        Option("Game alerts", "For your NHL teams, even with the app closed.") {
+            AlertPermissionLine()
+            ToggleRow("30 minutes before puck drop", ui.alertPregame) { set(ui.copy(alertPregame = it)) }
+            ToggleRow("Goals", ui.alertGoals) { set(ui.copy(alertGoals = it)) }
+            ToggleRow("Goal replays", ui.alertReplays) { set(ui.copy(alertReplays = it)) }
+            ToggleRow("End-of-period stats", ui.alertPeriods) { set(ui.copy(alertPeriods = it)) }
+            ToggleRow("AI period recap (needs bitcall)", ui.alertRecap) { set(ui.copy(alertRecap = it)) }
+            ToggleRow("Final score", ui.alertFinal) { set(ui.copy(alertFinal = it)) }
+        }
         Option("Show", null) {
             ToggleRow("Scores", ui.showScores) { vm.updateUi(ui.copy(showScores = it)) }
             ToggleRow("News", ui.showNews) { vm.updateUi(ui.copy(showNews = it)) }
@@ -579,6 +577,42 @@ fun CustomizeSheet(vm: BitsportsViewModel) {
     }
 }
 
+/** Says, in one line, why alerts can't work yet, with the button that fixes it. Re-checks on return. */
+@Composable
+private fun AlertPermissionLine() {
+    val ctx = LocalContext.current
+    var problem by remember { mutableStateOf(AlertScheduler.problem(ctx)) }
+    val recheck = { problem = AlertScheduler.problem(ctx); AlertScheduler.refresh(ctx) }
+    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { recheck() }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) recheck() }
+        lifecycle.addObserver(obs)
+        onDispose { lifecycle.removeObserver(obs) }
+    }
+    val p = problem ?: return
+    Text(p, color = Warn, fontSize = 13.sp)
+    Spacer(Modifier.height(8.dp))
+    Button(
+        onClick = {
+            when {
+                !AlertNotifier.canPost(ctx) && Build.VERSION.SDK_INT >= 33 ->
+                    askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                !AlertNotifier.canPost(ctx) -> ctx.startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+                )
+                Build.VERSION.SDK_INT >= 31 -> ctx.startActivity(
+                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + ctx.packageName))
+                )
+            }
+        },
+        shape = RoundedCornerShape(11.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color(LocalUi.current.accent), contentColor = Color.Black),
+        modifier = Modifier.fillMaxWidth().height(44.dp),
+    ) { Text("Allow", fontWeight = FontWeight.SemiBold) }
+    Spacer(Modifier.height(8.dp))
+}
+
 @Composable
 private fun Option(title: String, note: String?, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxWidth().padding(vertical = 14.dp)) {
@@ -591,38 +625,4 @@ private fun Option(title: String, note: String?, content: @Composable ColumnScop
         content()
     }
     HorizontalDivider(color = Line)
-}
-
-@Composable
-private fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Card2).padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        options.forEachIndexed { i, label ->
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (i == selected) Card3 else Color.Transparent)
-                    .clickable { onSelect(i) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(label, color = if (i == selected) TextInk else Muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    val accent = Color(LocalUi.current.accent)
-    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = TextInk, fontSize = 15.sp, modifier = Modifier.weight(1f))
-        Switch(
-            checked = checked, onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(checkedTrackColor = accent, checkedThumbColor = Color.Black, uncheckedTrackColor = Card3, uncheckedThumbColor = Muted, uncheckedBorderColor = Line2),
-        )
-    }
 }

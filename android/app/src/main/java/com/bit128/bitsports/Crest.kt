@@ -26,6 +26,8 @@ private val KNOWN_COLORS: Map<String, Pair<Color, Color>> = mapOf(
 
 fun teamColors(name: String): Pair<Color, Color> {
     val key = name.trim().lowercase()
+    // NHL teams (full names, nicknames or abbreviations) get their real colours.
+    com.bit128.bitsports.nhl.NhlTeams.match(name)?.let { return Color(it.colors.first) to Color(it.colors.second) }
     KNOWN_COLORS[key]?.let { return it }
     var h = 0
     for (c in key) h = (h * 31 + c.code) and 0x7fffffff
