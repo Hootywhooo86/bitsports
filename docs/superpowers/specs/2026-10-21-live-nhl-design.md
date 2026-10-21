@@ -64,9 +64,10 @@ Everything the user sees or hears can be customized.
    `BITCALL_KEYSTORE_PASSWORD`, `BITCALL_KEY_ALIAS`, `BITCALL_KEY_PASSWORD`), so bitcall
    installs keep updating in place. **In this project only bitcall and bitsports** use it;
    other family apps adopt it when they're next built. bitsports gets a release signing
-   config and CI that signs with it from its own repo secrets, which the user copies over
-   from bitcall (Claude can't read secret values). Until those secrets exist, CI should
-   fail loudly with a one-line explanation rather than silently ship a debug-signed APK.
+   config and CI that signs with it from its own repo secrets, already copied from bitcall
+   on 2026-10-21: `FAMILY_KEYSTORE_BASE64`, `FAMILY_KEYSTORE_PASSWORD`, `FAMILY_KEY_ALIAS`,
+   `FAMILY_KEY_PASSWORD`. If they're ever missing, CI should fail loudly with a one-line
+   explanation rather than silently ship a debug-signed APK.
    Existing bitsports installs (debug-signed) need one uninstall; say so in the release
    notes.
 
