@@ -4,9 +4,17 @@ Scores, but chunkier. The 128bit family's pixel sports app: live scores,
 standings and game-day quests for the teams you actually care about —
 NHL first, every league pixelated. Part of the 128bit family.
 
+**Plus: a real team-news feed.** Follow up to 4 teams per sport — any
+team, any sport, typed freely, not a fixed league list — and `index.html`
+pulls each team's real news live (Google News RSS via a Supabase edge
+function, cached 15 minutes) and shows it as one feed, filterable by team.
+Scores stay sample data until a live provider is picked (below); news is
+real today.
+
 > Product direction is Daniel's call — this README is a starter brief so
 > Carlos (Claude Code) has something concrete to react to. The landing page
-> is live; the app itself is unstarted.
+> is live, the team-news feature is live and working end to end, and the
+> rest of the app (real scores, quests) is unstarted.
 
 ## Concept (starter — Daniel decides)
 
@@ -66,6 +74,37 @@ src/
                # 128bitlife subscribes for quests + XP.
 ```
 
+This folder structure is the target once the app has a real build step.
+Today everything — including news — lives inline in `index.html`; `src/news/`
+below is where that logic moves once there's a bundler.
+
+## Team news — live today
+
+```
+index.html                           # team picker (localStorage, 4/sport cap) +
+                                      # news feed UI, calls the edge function directly
+supabase/team-news.sql               # public.team_news cache table (RLS: public read,
+                                      # writes only via the function's service-role key)
+supabase/functions/fetch-team-news/  # Deno edge function: Google News RSS -> normalized
+                                      # JSON, 15-min cache, serves stale cache if the
+                                      # upstream fetch fails
+```
+
+How it works: pick a team + type its sport/league freely (no fixed list —
+genuinely any team, any sport). Known teams (a small curated set) get their
+real colours as a flat two-colour pixel crest; anything else gets a stable
+crest hashed from its name, so every team has a consistent identity mark
+without needing a real logo. The client calls `fetch-team-news` with the
+Supabase publishable key (safe to expose; that's its purpose); the function
+checks its 15-minute cache, otherwise fetches and parses Google News RSS,
+upserts the results into `team_news`, and returns them. No scraping of
+arbitrary sites, no API key, no ToS risk.
+
+Deployed to the shared "128bit play" Supabase project (the same one
+`family-feed.sql` runs in) — additive only, nothing else there was touched.
+`src/news/` in the tree above is where this moves once the app has a real
+frontend build; for now it's inline so it ships today.
+
 Rules:
 - **Scores must be fast and right.** Cache aggressively, show the
   data's age honestly ("updated 12s ago"), and never present stale
@@ -82,7 +121,9 @@ Rules:
 
 ```
 We're building bitsports — the 128bit family's pixel sports app:
-"scores, but chunkier." Read this README first.
+"scores, but chunkier," plus a live team-news feed. Read this README
+first. Team news (picker + Google News RSS edge function + feed UI) is
+done — see "Team news — live today" above. Don't rebuild it.
 
 Build order:
 1. Provider call (ask Daniel): ESPN public endpoints behind an
