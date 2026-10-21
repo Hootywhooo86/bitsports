@@ -10,9 +10,17 @@ import kotlinx.coroutines.launch
 const val MAX_PER_SPORT = 4
 const val ALL_TAB = "all"
 
-class BitsportsViewModel(private val store: TeamsStore) : ViewModel() {
+class BitsportsViewModel(private val store: TeamsStore, private val prefsStore: PrefsStore) : ViewModel() {
     var teams by mutableStateOf(store.load())
         private set
+
+    var ui by mutableStateOf(prefsStore.load())
+        private set
+
+    fun updateUi(p: UiPrefs) {
+        ui = p
+        prefsStore.save(p)
+    }
 
     var activeTab by mutableStateOf(ALL_TAB)
         private set
@@ -38,7 +46,7 @@ class BitsportsViewModel(private val store: TeamsStore) : ViewModel() {
     fun addTeam(team: String, sport: String) {
         addMessage = ""
         if (team.isBlank() || sport.isBlank()) {
-            addMessage = "Enter both a team and a sport/league."
+            addMessage = "Enter both a team and a sport or league."
             return
         }
         val dupe = teams.any { slugify(it.sport) == slugify(sport) && slugify(it.team) == slugify(team) }
@@ -47,7 +55,7 @@ class BitsportsViewModel(private val store: TeamsStore) : ViewModel() {
             return
         }
         if (countFor(sport) >= MAX_PER_SPORT) {
-            addMessage = "$sport is full ($MAX_PER_SPORT/$MAX_PER_SPORT) — remove one to add another."
+            addMessage = "$sport is full ($MAX_PER_SPORT of $MAX_PER_SPORT). Remove one to add another."
             return
         }
         teams = teams + FollowedTeam(team.trim(), sport.trim())

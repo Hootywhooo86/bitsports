@@ -3,192 +3,296 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>bitsports — your teams, your news</title>
-<meta name="description" content="bitsports: pick up to 4 teams per sport — any team, any sport — and get their live scores and real news in one pixel feed. Part of the 128bit family.">
+<title>BITSPORTS — scores, but chunkier</title>
+<meta name="description" content="bitsports: pick up to 4 teams per sport — any team, any sport — and get their scores and real news in one pixel feed. Part of the 128bit family.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-1 -3 13 12' shape-rendering='crispEdges'%3E%3Crect x='-1' y='-3' width='13' height='12' fill='%23000'/%3E%3Cpath fill='%23fff' d='M6 0h4v1H6zM5 1h6v4H5zM6 5h4v1H6zM0 1h3v1H0zM1 3h3v1H1z'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* 128bit family tokens — same as 128bitfit/prototype/app-shell.html.
+     Monochrome chrome; colour only ever means data (team crests, LIVE). */
   :root{
-    --ground:#000000; --surface:#111111; --raised:#2a2a2a; --border:#1a1a1a; --rule:#161616;
-    --control:#444444; --text:#ffffff; --muted:#b4b4b4; --faint:#949494;
-    --accent:#c6f24e; --positive:#c6f24e; --negative:#e5484d; --warning:#e5a93b;
-    --pill-positive-bg:#222a10; --pill-positive-ink:#c6f24e;
-    --pill-negative-bg:#2c1a20; --pill-negative-ink:#e5566f;
-    --radius-card:20px; --radius-control:999px;
-    --gap:14px; --pad:22px; --control-height:36px;
-    --fs-title:20px; --fs-section:16px; --fs-kpi:24px; --fs-body:14px; --fs-small:12px;
+    --bg:#000;--card:#0d0d0d;--card2:#171717;--card3:#212121;
+    --line:#242424;--line2:#3a3a3a;
+    --fg:#fff;--muted:#8c8c8c;--dim:#6b6b6b;
+    --live:#ff4d6d;--warn:#ffd95e;
+    --accent:#ffffff;--onAccent:#000000;
+    --pixel:'Silkscreen',ui-monospace,monospace;--ui:'Inter',system-ui,-apple-system,sans-serif;
+    --gap:24px;
   }
-  *{box-sizing:border-box;margin:0;padding:0}
+  :root:not([data-theme="light"]){color-scheme:dark}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html{-webkit-text-size-adjust:100%}
-  body{background:var(--ground);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:var(--fs-body);line-height:1.5}
-  .pixel{font-family:'Press Start 2P',monospace}
-  .col{max-width:1152px;margin:0 auto;padding:0 20px}
+  body{background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
   a{color:inherit}
-  button{font-family:inherit;cursor:pointer}
-  input{font-family:inherit}
-  ::selection{background:var(--accent);color:#06130a}
+  button,input{font-family:inherit;font-size:inherit;color:inherit}
+  button{cursor:pointer}
+  :focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+  ::selection{background:var(--fg);color:var(--bg)}
 
-  /* top bar: no sidebar shell, logo on the column's left edge */
-  header.topbar{
-    position:sticky;top:0;z-index:5;background:var(--ground);
-    height:48px;display:flex;align-items:center;border-bottom:1px solid var(--rule);
-  }
-  header.topbar .col{display:flex;align-items:center;justify-content:space-between;height:100%}
-  .logo{display:flex;align-items:center;gap:10px}
-  .logo-mark{width:22px;height:22px;background:var(--accent);image-rendering:pixelated}
-  .logo .word{font-family:'Press Start 2P',monospace;font-size:12px;letter-spacing:.5px}
-  nav.links{display:flex;gap:22px}
-  nav.links a{font-size:14px;font-weight:600;color:var(--muted);text-decoration:none}
-  nav.links a:hover{color:var(--text)}
+  /* Grid arithmetic (desktop): column 1104 = main 700 + gap 24 + rail 380. */
+  .col{max-width:1152px;margin:0 auto;padding:0 24px}
 
-  main{padding:40px 0 80px}
+  /* ---------- top bar (family .bar) ---------- */
+  .bar{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line)}
+  .bar .col{height:62px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .brand{display:flex;align-items:center;gap:12px;text-decoration:none}
+  .brand svg{width:33px;height:21px;display:block}
+  .brand .word{font-family:var(--pixel);font-size:16px;letter-spacing:1px;line-height:1}
+  .bar .date{font-family:var(--pixel);font-size:11px;letter-spacing:1px;color:var(--muted);white-space:nowrap}
 
-  /* title row */
-  .titlerow h1{font-size:var(--fs-title);font-weight:600;letter-spacing:.2px}
-  .titlerow .finding{margin-top:6px;font-size:14px;color:var(--muted)}
-  .titlerow .finding b{color:var(--text);font-weight:600}
+  main.col{padding-top:32px;padding-bottom:96px}
 
-  /* team picker */
-  section.teams{margin-top:28px}
-  .teams h2{font-size:var(--fs-section);font-weight:600;margin-bottom:12px}
-  .team-groups{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
-  .team-group{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  .team-group .sport-tag{font-size:11px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.6px;min-width:64px}
-  .chip{
-    display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:var(--radius-control);
-    padding:6px 12px 6px 6px;font-size:13px;font-weight:500;
-  }
-  .chip .crest{width:20px;height:20px;border-radius:4px;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;flex:none}
-  .chip .crest span{display:block}
-  .chip .rm{background:none;border:none;color:var(--faint);font-size:14px;line-height:1;padding:0 2px}
-  .chip .rm:hover{color:var(--negative)}
-  .full-note{font-size:12px;color:var(--faint)}
+  /* ---------- title row ---------- */
+  .titlerow{margin-bottom:28px}
+  .titlerow h1{font-family:var(--pixel);font-size:24px;font-weight:700;letter-spacing:1px;line-height:1.1}
+  .titlerow .finding{margin-top:10px;font-size:16px;color:var(--muted);max-width:60ch}
+  .titlerow .finding b{color:var(--fg);font-weight:600}
 
-  .add-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .add-row input{
-    background:var(--surface);border:1px solid var(--border);color:var(--text);
-    height:var(--control-height);border-radius:10px;padding:0 12px;font-size:14px;outline:none;min-width:0;
-  }
-  .add-row input:focus{border-color:var(--accent)}
-  .add-row input#teamInput{flex:1 1 220px}
-  .add-row input#sportInput{flex:1 1 150px}
-  .add-row button#addTeamBtn{
-    height:var(--control-height);padding:0 18px;border-radius:var(--radius-control);border:none;
-    background:#fff;color:#000;font-weight:600;font-size:14px;
-  }
-  .add-row button#addTeamBtn:disabled{opacity:.4;cursor:default}
-  .add-msg{font-size:13px;color:var(--warning);min-height:16px;margin-top:6px}
+  /* ---------- layout ---------- */
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:var(--gap);align-items:start}
+  .left{display:flex;flex-direction:column;gap:40px;min-width:0}
+  .rail{position:sticky;top:86px}
 
-  /* today strip */
-  section.today{margin-top:32px}
-  .today h2{font-size:var(--fs-section);font-weight:600;margin-bottom:4px}
-  .today .caption{font-size:12px;color:var(--faint);margin-bottom:12px}
-  .game{
-    display:flex;align-items:center;gap:16px;background:var(--surface);border-radius:var(--radius-card);
-    padding:14px var(--pad);margin-bottom:8px;
-  }
-  .game .side{display:flex;align-items:center;gap:8px;min-width:150px}
-  .game .crest{width:24px;height:24px;border-radius:5px;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;flex:none}
-  .game .crest span{display:block}
-  .game .tm{font-weight:600;font-size:14px}
-  .game .sc{font-family:'Press Start 2P',monospace;font-size:var(--fs-kpi);font-variant-numeric:tabular-nums;margin-left:auto}
-  .game .sc.lead{color:var(--accent)}
-  .game .meta{margin-left:auto;text-align:right;font-size:12px;color:var(--muted)}
-  .game .meta .live{color:var(--negative);font-weight:600}
-  .game .meta .live i{display:inline-block;width:6px;height:6px;background:var(--negative);border-radius:50%;margin-right:5px;animation:blink 1.1s steps(2) infinite}
-  @keyframes blink{50%{opacity:.15}}
-  .empty-note{font-size:13px;color:var(--faint);padding:12px 0}
+  .lbl{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .lbl h2{font-family:var(--pixel);font-size:13px;font-weight:700;letter-spacing:1.5px;line-height:1.2}
+  .lbl .s{font-size:12px;color:var(--muted);text-align:right}
 
-  /* news */
-  section.news{margin-top:36px}
-  .news-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2px}
-  .news-head h2{font-size:var(--fs-section);font-weight:600}
-  .news-head .count{font-size:12px;color:var(--faint)}
-  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);margin:14px 0 4px;overflow-x:auto}
-  .tabs button{
-    background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;
-    padding:10px 4px;margin-right:18px;border-bottom:2px solid transparent;white-space:nowrap;
-  }
-  .tabs button.on{color:var(--text);border-color:var(--accent)}
-  .newsrow{
-    display:flex;align-items:flex-start;gap:14px;padding:16px 4px;border-bottom:1px solid var(--rule);
-    text-decoration:none;
-  }
-  .newsrow:last-child{border-bottom:none}
-  .newsrow .crest{width:28px;height:28px;border-radius:6px;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;flex:none;margin-top:2px}
-  .newsrow .crest span{display:block}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px}
+
+  /* ---------- scoreboard ---------- */
+  .games{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .game{padding:16px 18px 14px}
+  .game.hero{grid-column:1/-1;padding:20px 24px 18px}
+  .game:last-child:nth-child(even){grid-column:1/-1}
+  .g-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
+    font-family:var(--pixel);font-size:11px;letter-spacing:1px;color:var(--muted)}
+  .g-head .live{color:var(--live);display:flex;align-items:center;gap:7px}
+  .g-head .live i{width:8px;height:8px;background:var(--live);display:block;animation:blink 1.1s steps(2) infinite}
+  @keyframes blink{50%{opacity:.2}}
+  .g-row{display:flex;align-items:center;gap:12px;min-height:44px}
+  .g-row .tm{flex:1;min-width:0;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .g-row .tm.lose{color:var(--muted);font-weight:500}
+  .g-row .pts{flex:none;font-family:var(--pixel);font-weight:400;font-size:28px;line-height:1;min-width:1.2em;text-align:right;font-variant-numeric:tabular-nums}
+  .g-row .pts.lose,.g-row .pts.none{color:var(--dim)}
+  .game.hero .g-row{min-height:60px}
+  .game.hero .tm{font-size:19px}
+  .game.hero .pts{font-size:40px}
+  .game .mine{font-family:var(--pixel);font-size:11px;letter-spacing:1px;color:var(--accent);flex:none}
+
+  .crest{display:grid;grid-template-columns:1fr 1fr;flex:none;overflow:hidden;border-radius:3px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+  .crest span{display:block}
+
+  /* ---------- teams (rail) ---------- */
+  .teams{padding:20px}
+  .sport{margin-bottom:16px}
+  .sport-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;
+    font-family:var(--pixel);font-size:11px;letter-spacing:1px;color:var(--muted)}
+  .sport-head b{font-weight:400;color:var(--fg)}
+  .chips{display:flex;flex-direction:column;gap:6px}
+  .chip{display:flex;align-items:center;gap:10px;background:var(--card2);border-radius:10px;padding:0 6px 0 10px;min-height:44px}
+  .chip .nm{flex:1;min-width:0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chip .rm{flex:none;width:36px;height:36px;border:none;background:none;border-radius:8px;color:var(--muted);font-size:18px;line-height:1}
+  .chip .rm:hover{background:var(--card3);color:var(--fg)}
+
+  .add{display:grid;gap:8px;margin-top:4px}
+  .add input{background:var(--card2);border:1px solid var(--line);border-radius:11px;height:44px;padding:0 14px;outline:none;min-width:0;width:100%}
+  .add input::placeholder{color:var(--dim)}
+  .add input:focus{border-color:var(--line2)}
+  .add .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .btn{height:44px;border:none;border-radius:11px;background:var(--accent);color:var(--onAccent);
+    font-family:var(--pixel);font-size:13px;font-weight:700;letter-spacing:1px;transition:transform .08s,opacity .15s}
+  .btn:hover{opacity:.88}
+  .btn:active{transform:scale(.98)}
+  .add-msg{font-size:13px;color:var(--warn);min-height:0}
+  .add-msg:empty{display:none}
+
+  .quick{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+  .quick p{font-size:13px;color:var(--muted);margin-bottom:10px}
+  .quick .opts{display:flex;flex-wrap:wrap;gap:6px}
+  .quick button{display:flex;align-items:center;gap:8px;background:none;border:1px solid var(--line2);border-radius:10px;
+    padding:0 12px 0 8px;min-height:40px;font-size:13px;font-weight:500;transition:border-color .15s}
+  .quick button:hover{border-color:var(--fg)}
+
+  /* ---------- news ---------- */
+  .tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;padding:0 20px}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--muted);
+    font-weight:600;font-size:14px;padding:14px 0 12px;white-space:nowrap}
+  .tabs button:hover{color:var(--fg)}
+  .tabs button.on{color:var(--fg);border-color:var(--accent)}
+  .newsrow{display:flex;align-items:flex-start;gap:14px;padding:16px 20px;text-decoration:none;border-top:1px solid var(--line)}
+  .newsrow:first-child{border-top:none}
+  .newsrow:hover{background:var(--card2)}
   .newsrow .body{flex:1;min-width:0}
-  .newsrow .title{font-size:14px;font-weight:500;color:var(--text)}
-  .newsrow .sub{margin-top:4px;font-size:12px;color:var(--faint)}
-  .newsrow:hover .title{color:var(--accent)}
-  .skel{height:60px;border-radius:10px;background:var(--surface);margin-bottom:8px}
-  .news-empty, .news-error{font-size:13px;color:var(--faint);padding:20px 4px}
-  .news-error{color:var(--warning)}
-  .retry{background:none;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 12px;font-size:12px;margin-top:8px}
+  .newsrow .title{font-size:15px;font-weight:500;line-height:1.4}
+  .newsrow .sub{margin-top:5px;font-size:13px;color:var(--muted)}
+  .skel{height:52px;margin:14px 20px;border-radius:8px;background:var(--card2)}
+  .news-empty,.news-error{font-size:14px;color:var(--muted);padding:28px 20px}
+  .news-error{color:var(--warn);padding-bottom:10px}
+  .retry{margin:0 20px 24px;background:none;border:1px solid var(--line2);border-radius:10px;height:40px;padding:0 16px;font-weight:600}
 
-  footer{border-top:1px solid var(--rule);padding:30px 0;text-align:center;color:var(--faint);font-size:12px;line-height:2}
-  footer .fam{font-family:'Press Start 2P',monospace;font-size:11px;letter-spacing:1px;color:var(--text);line-height:2.2}
-  footer .fam span{color:var(--accent)}
+  /* ---------- footer ---------- */
+  footer{border-top:1px solid var(--line);padding:48px 0 56px}
+  footer .big{font-family:var(--pixel);font-weight:700;font-size:clamp(40px,9vw,120px);letter-spacing:2px;line-height:1}
+  footer .row{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-top:24px;font-size:13px;color:var(--muted)}
+  footer .fam{font-family:var(--pixel);font-size:11px;letter-spacing:1px;line-height:2;max-width:640px}
 
+  /* ---------- customize ---------- */
+  .bar .right{display:flex;align-items:center;gap:18px}
+  .cbtn{height:36px;padding:0 14px;background:none;border:1px solid var(--line2);border-radius:10px;
+    font-family:var(--pixel);font-size:11px;letter-spacing:1px;transition:border-color .15s}
+  .cbtn:hover{border-color:var(--accent)}
+  dialog.sheet{margin:0 0 0 auto;height:100dvh;max-height:none;width:min(400px,100vw);border:none;border-left:1px solid var(--line);
+    background:var(--card);color:var(--fg);padding:0;box-shadow:-12px 0 40px rgba(0,0,0,.6)}
+  dialog.sheet::backdrop{background:rgba(0,0,0,.6)}
+  .sheet-head{display:flex;justify-content:space-between;align-items:center;height:62px;padding:0 20px;border-bottom:1px solid var(--line)}
+  .sheet-head h2{font-family:var(--pixel);font-size:14px;letter-spacing:1.5px}
+  .sheet-head button{width:40px;height:40px;background:none;border:none;border-radius:8px;font-size:22px;color:var(--muted)}
+  .sheet-head button:hover{background:var(--card2);color:var(--fg)}
+  .sheet-body{padding:8px 20px 28px;overflow-y:auto;height:calc(100% - 62px)}
+  .opt{padding:16px 0;border-bottom:1px solid var(--line)}
+  .opt:last-of-type{border-bottom:none}
+  .opt > p{font-size:14px;font-weight:600;margin-bottom:4px}
+  .opt > small{display:block;font-size:13px;color:var(--muted);margin-bottom:12px}
+  .seg{display:flex;background:var(--card2);border-radius:10px;padding:3px;gap:3px}
+  .seg button{flex:1;height:36px;border:none;background:none;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted)}
+  .seg button[aria-pressed="true"]{background:var(--card3);color:var(--fg)}
+  .swatches{display:flex;gap:10px;flex-wrap:wrap}
+  .swatches button{width:40px;height:40px;border-radius:10px;border:2px solid transparent;padding:4px;background:none}
+  .swatches button span{display:block;width:100%;height:100%;border-radius:6px}
+  .swatches button[aria-pressed="true"]{border-color:var(--fg)}
+  .toggle{display:flex;justify-content:space-between;align-items:center;min-height:44px;font-size:14px;cursor:pointer}
+  .toggle input{width:20px;height:20px;accent-color:var(--accent)}
+  .reset{margin-top:20px;width:100%;height:44px;background:none;border:1px solid var(--line2);border-radius:11px;font-weight:600}
+
+  /* preference states (set on <html> by the script) */
+  .g-head .live i{animation-play-state:running}
+  html.no-blink .g-head .live i{animation:none}
+  html.compact .games{grid-template-columns:1fr}
+  html.compact .game,html.compact .game.hero{padding:10px 16px 8px}
+  html.compact .g-head{margin-bottom:4px}
+  html.compact .g-row,html.compact .game.hero .g-row{min-height:36px}
+  html.compact .g-row .pts,html.compact .game.hero .pts{font-size:20px}
+  html.compact .game.hero .tm{font-size:15px}
+  html.large body{zoom:1.15}
+  html.plain .titlerow h1,html.plain .lbl h2,html.plain .sport-head,html.plain .g-head,html.plain .btn,
+  html.plain .cbtn,html.plain .sheet-head h2,html.plain .game .mine,html.plain .bar .date{font-family:var(--ui);letter-spacing:0;font-weight:700}
+  html.rail-left .layout{grid-template-columns:380px minmax(0,1fr)}
+  html.rail-left .rail{order:-1}
+  html.hide-scores .scores,html.hide-news .news{display:none}
+
+  @media (max-width:900px){
+    html.rail-left .layout{grid-template-columns:minmax(0,1fr)}
+    html.rail-left .rail{order:2}
+    .layout{grid-template-columns:minmax(0,1fr)}
+    .left{display:contents}
+    .scores{order:1}.rail{order:2;position:static}.news{order:3}
+  }
   @media (max-width:560px){
-    nav.links{display:none}
-    .game .side{min-width:0}
+    .col{padding:0 16px}
+    main.col{padding-top:24px}
+    .titlerow h1{font-size:20px}
+    .bar .date{display:none}
+    .games{grid-template-columns:1fr}
+    .game.hero{padding:16px 18px 14px}
+    .game.hero .tm{font-size:17px}
+    .game.hero .pts{font-size:34px}
+    .teams{padding:16px}
+    .tabs{padding:0 16px}
+    .newsrow{padding:14px 16px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .g-head .live i{animation:none}
+    .btn{transition:none}
   }
 </style>
 </head>
 <body>
 
-<header class="topbar">
+<header class="bar">
   <div class="col">
-    <div class="logo"><span class="logo-mark"></span><span class="word">bitsports</span></div>
-    <nav class="links">
-      <a href="#today">Today</a>
-      <a href="#news">News</a>
-      <a href="#teams">Teams</a>
-    </nav>
+    <a class="brand" href="./" aria-label="bitsports home">
+      <!-- The mark: a pixel puck in flight. 11×6 grid, crisp at any size. -->
+      <svg viewBox="0 0 11 6" shape-rendering="crispEdges" aria-hidden="true">
+        <path fill="currentColor" style="color:var(--accent)" d="M6 0h4v1H6zM5 1h6v4H5zM6 5h4v1H6zM0 1h3v1H0zM1 3h3v1H1z"/>
+      </svg>
+      <span class="word">BITSPORTS</span>
+    </a>
+    <div class="right">
+      <span class="date" id="today-date"></span>
+      <button class="cbtn" id="openCustomize" type="button" aria-haspopup="dialog">CUSTOMIZE</button>
+    </div>
   </div>
 </header>
+
+<dialog class="sheet" id="customize" aria-labelledby="customize-h">
+  <div class="sheet-head"><h2 id="customize-h">CUSTOMIZE</h2><button type="button" id="closeCustomize" aria-label="Close">×</button></div>
+  <div class="sheet-body">
+    <div class="opt"><p>Accent</p><small>Buttons, selected tabs and the logo. Team colours and LIVE never change.</small><div class="swatches" id="optAccent"></div></div>
+    <div class="opt"><p>Scores</p><small>Big pixel box scores, or a tight list.</small><div class="seg" id="optScores"></div></div>
+    <div class="opt"><p>Text size</p><div class="seg" id="optSize"></div></div>
+    <div class="opt"><p>Headings</p><small>Pixel type like the rest of 128bit, or plain.</small><div class="seg" id="optHeads"></div></div>
+    <div class="opt"><p>Your teams panel</p><small>Which side it sits on, on wide screens.</small><div class="seg" id="optRail"></div></div>
+    <div class="opt"><p>Show</p>
+      <label class="toggle">Scores <input type="checkbox" id="optShowScores"></label>
+      <label class="toggle">News <input type="checkbox" id="optShowNews"></label>
+      <label class="toggle">Blinking LIVE marker <input type="checkbox" id="optBlink"></label>
+    </div>
+    <button class="reset" id="resetPrefs" type="button">Reset to defaults</button>
+  </div>
+</dialog>
 
 <main class="col">
 
   <div class="titlerow">
-    <h1>YOUR TEAMS</h1>
-    <p class="finding" id="finding">Pick up to 4 teams per sport to see their news.</p>
+    <h1>TODAY</h1>
+    <p class="finding" id="finding"></p>
   </div>
 
-  <section class="teams" id="teams">
-    <h2>Teams</h2>
-    <div class="team-groups" id="teamGroups"></div>
-    <div class="add-row">
-      <input id="teamInput" type="text" placeholder="Team name — any team" aria-label="Team name">
-      <input id="sportInput" type="text" placeholder="Sport / league — any sport" aria-label="Sport or league">
-      <button id="addTeamBtn" type="button">ADD TEAM</button>
-    </div>
-    <p class="add-msg" id="addMsg"></p>
-  </section>
+  <div class="layout">
+    <div class="left">
+      <section class="scores" id="scores" aria-labelledby="scores-h">
+        <div class="lbl"><h2 id="scores-h">SCORES</h2><span class="s">Sample games · live scores aren't wired in yet</span></div>
+        <div class="games" id="todayGames"></div>
+      </section>
 
-  <section class="today" id="today">
-    <h2>Today</h2>
-    <p class="caption">Sample matchups — bitsports doesn't have a live score provider wired in yet (see README). News below is real.</p>
-    <div id="todayGames"></div>
-  </section>
-
-  <section class="news" id="news">
-    <div class="news-head">
-      <h2>News</h2>
-      <span class="count" id="newsCount"></span>
+      <section class="news" id="news" aria-labelledby="news-h">
+        <div class="lbl"><h2 id="news-h">NEWS</h2><span class="s" id="newsCount"></span></div>
+        <div class="card">
+          <div class="tabs" id="newsTabs" role="tablist"></div>
+          <div id="newsList"></div>
+        </div>
+      </section>
     </div>
-    <div class="tabs" id="newsTabs"></div>
-    <div id="newsList"></div>
-  </section>
+
+    <aside class="rail" id="teams" aria-labelledby="teams-h">
+      <div class="lbl"><h2 id="teams-h">YOUR TEAMS</h2><span class="s">Up to 4 per sport</span></div>
+      <div class="card teams">
+        <div id="teamGroups"></div>
+        <div class="add">
+          <input id="teamInput" type="text" placeholder="Team — any team" aria-label="Team name" autocomplete="off">
+          <div class="pair">
+            <input id="sportInput" type="text" placeholder="Sport or league" aria-label="Sport or league" autocomplete="off">
+            <button class="btn" id="addTeamBtn" type="button">ADD TEAM</button>
+          </div>
+          <p class="add-msg" id="addMsg" role="status"></p>
+        </div>
+        <div class="quick" id="quick"></div>
+      </div>
+    </aside>
+  </div>
 
 </main>
 
 <footer>
   <div class="col">
-    <div class="fam"><span>bit</span>sports · <span>128bit</span>fantasy · <span>bit</span>launcher · <span>bit</span>messenger · <span>bit</span>call · <span>128bit</span>fit · <span>128bit</span>play · <span>128bit</span>trip · <span>128bit</span>gold · <span>128bit</span>music · <span>128bit</span>tracker · <span>128bit</span>life</div>
-    bitsports — part of the 128bit family · teams stay on this device, nothing is synced<br>© 2026 128bit
+    <div class="big">BITSPORTS</div>
+    <div class="row">
+      <div class="fam">Part of the 128bit family: 128bitfantasy · bitlauncher · bitmessenger · bitcall · 128bitfit · 128bitplay · 128bittrip · 128bitgold · 128bitmusic · 128bittracker · 128bitlife</div>
+      <div>Your teams stay on this device. Nothing is synced.<br>© 2026 128bit</div>
+    </div>
   </div>
 </footer>
 
@@ -255,6 +359,15 @@
     if (hrs < 24) return hrs + "h ago";
     return Math.round(hrs / 24) + "d ago";
   }
+  function el(tag, cls, text){
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  document.getElementById("today-date").textContent =
+    new Date().toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" }).toUpperCase();
 
   // ---- state ----
   var teams = [];
@@ -265,16 +378,36 @@
   function save(){ try { localStorage.setItem(STORAGE_KEY, JSON.stringify(teams)); } catch (e) {} }
   function teamKey(t){ return slug(t.sport) + ":" + slug(t.team); }
   function countFor(sport){ return teams.filter(function(t){ return slug(t.sport) === slug(sport); }).length; }
+  function follows(name){ return teams.some(function(t){ return slug(t.team) === slug(name); }); }
+  function renderAll(){ renderTeams(); renderTabs(); renderToday(); renderNews(); }
 
-  // ---- team picker render ----
+  // ---- sample games (honestly labelled in the section header) ----
+  var SAMPLE_GAMES = [
+    { home: "Edmonton Oilers", away: "Calgary Flames", hs: 4, as: 2, status: "live", clock: "3RD · 8:12", sport: "NHL" },
+    { home: "Toronto Maple Leafs", away: "Boston Bruins", hs: 4, as: 1, status: "final", sport: "NHL" },
+    { home: "Winnipeg Jets", away: "Colorado Avalanche", hs: null, as: null, status: "7:00 PM MT", sport: "NHL" }
+  ];
+  function shortName(n){ var w = n.split(" "); return w[w.length - 1]; }
+
+  // ---- team picker ----
   var groupsEl = document.getElementById("teamGroups");
   var addMsg = document.getElementById("addMsg");
-  var findingEl = document.getElementById("finding");
+  var quickEl = document.getElementById("quick");
+
+  function addTeam(team, sport){
+    addMsg.textContent = "";
+    if (!team || !sport) { addMsg.textContent = "Enter both a team and a sport or league."; return false; }
+    var dupe = teams.some(function(t){ return slug(t.sport) === slug(sport) && slug(t.team) === slug(team); });
+    if (dupe) { addMsg.textContent = team + " is already in your " + sport + " list."; return false; }
+    if (countFor(sport) >= MAX_PER_SPORT) { addMsg.textContent = sport + " is full (" + MAX_PER_SPORT + " of " + MAX_PER_SPORT + "). Remove one to add another."; return false; }
+    teams.push({ team: team, sport: sport });
+    save(); renderAll();
+    return true;
+  }
 
   function renderTeams(){
     groupsEl.innerHTML = "";
-    var bySport = {};
-    var order = [];
+    var bySport = {}, order = [];
     teams.forEach(function(t){
       var k = slug(t.sport);
       if (!bySport[k]) { bySport[k] = []; order.push(k); }
@@ -282,116 +415,121 @@
     });
     order.forEach(function(k){
       var list = bySport[k];
-      var row = document.createElement("div");
-      row.className = "team-group";
-      var tag = document.createElement("span");
-      tag.className = "sport-tag";
-      tag.textContent = list[0].sport;
-      row.appendChild(tag);
+      var group = el("div", "sport");
+      var head = el("div", "sport-head");
+      head.appendChild(el("b", null, list[0].sport.toUpperCase()));
+      head.appendChild(el("span", null, list.length + " OF " + MAX_PER_SPORT));
+      group.appendChild(head);
+      var chips = el("div", "chips");
       list.forEach(function(t){
-        var chip = document.createElement("span");
-        chip.className = "chip";
-        chip.appendChild(crestEl(t.team, "20px"));
-        var label = document.createElement("span"); label.textContent = t.team;
-        chip.appendChild(label);
-        var rm = document.createElement("button");
-        rm.className = "rm"; rm.type = "button"; rm.textContent = "×";
+        var chip = el("div", "chip");
+        chip.appendChild(crestEl(t.team, "22px"));
+        chip.appendChild(el("span", "nm", t.team));
+        var rm = el("button", "rm", "×");
+        rm.type = "button";
         rm.setAttribute("aria-label", "Remove " + t.team);
         rm.addEventListener("click", function(){
-          teams = teams.filter(function(x){ return !(slug(x.sport) === slug(t.sport) && slug(x.team) === slug(t.team)); });
-          save(); renderTeams(); renderTabs(); renderToday();
-          if (activeTab !== "all" && activeTab === teamKey(t)) { activeTab = "all"; }
-          renderNews();
+          teams = teams.filter(function(x){ return teamKey(x) !== teamKey(t); });
+          if (activeTab === teamKey(t)) activeTab = "all";
+          save(); renderAll();
         });
         chip.appendChild(rm);
-        row.appendChild(chip);
+        chips.appendChild(chip);
       });
-      if (list.length >= MAX_PER_SPORT) {
-        var note = document.createElement("span");
-        note.className = "full-note";
-        note.textContent = "(" + list.length + "/" + MAX_PER_SPORT + " — full)";
-        row.appendChild(note);
-      }
-      groupsEl.appendChild(row);
+      group.appendChild(chips);
+      groupsEl.appendChild(group);
     });
 
-    if (teams.length === 0) {
-      findingEl.textContent = "Pick up to 4 teams per sport to see their news.";
-    } else {
-      var sports = {};
-      teams.forEach(function(t){ sports[slug(t.sport)] = true; });
-      var sportCount = Object.keys(sports).length;
-      findingEl.innerHTML = "Following <b>" + teams.length + "</b> team" + (teams.length === 1 ? "" : "s") +
-        " across <b>" + sportCount + "</b> sport" + (sportCount === 1 ? "" : "s") + ".";
+    // One-tap adds from tonight's games, so an empty screen is one tap from useful.
+    quickEl.innerHTML = "";
+    var picks = [];
+    SAMPLE_GAMES.forEach(function(g){
+      [g.home, g.away].forEach(function(n){ if (!follows(n) && picks.length < 4) picks.push({ team: n, sport: g.sport }); });
+    });
+    if (picks.length && countFor("NHL") < MAX_PER_SPORT) {
+      quickEl.appendChild(el("p", null, teams.length ? "Playing today:" : "No teams yet. Start with one playing today:"));
+      var opts = el("div", "opts");
+      picks.forEach(function(p){
+        var b = el("button");
+        b.type = "button";
+        b.appendChild(crestEl(p.team, "18px"));
+        b.appendChild(document.createTextNode(p.team));
+        b.setAttribute("aria-label", "Add " + p.team + " (" + p.sport + ")");
+        b.addEventListener("click", function(){ addTeam(p.team, p.sport); });
+        opts.appendChild(b);
+      });
+      quickEl.appendChild(opts);
     }
   }
 
   var teamInput = document.getElementById("teamInput");
   var sportInput = document.getElementById("sportInput");
-  var addBtn = document.getElementById("addTeamBtn");
-
   function tryAdd(){
-    var team = teamInput.value.trim();
-    var sport = sportInput.value.trim();
-    addMsg.textContent = "";
-    if (!team || !sport) { addMsg.textContent = "Enter both a team and a sport/league."; return; }
-    var dupe = teams.some(function(t){ return slug(t.sport) === slug(sport) && slug(t.team) === slug(team); });
-    if (dupe) { addMsg.textContent = team + " is already in your " + sport + " list."; return; }
-    if (countFor(sport) >= MAX_PER_SPORT) { addMsg.textContent = sport + " is full (" + MAX_PER_SPORT + "/" + MAX_PER_SPORT + ") — remove one to add another."; return; }
-    teams.push({ team: team, sport: sport });
-    save();
-    teamInput.value = ""; sportInput.value = "";
-    renderTeams(); renderTabs(); renderToday(); renderNews();
+    if (addTeam(teamInput.value.trim(), sportInput.value.trim())) { teamInput.value = ""; sportInput.value = ""; }
   }
-  addBtn.addEventListener("click", tryAdd);
-  [teamInput, sportInput].forEach(function(el){
-    el.addEventListener("keydown", function(e){ if (e.key === "Enter") tryAdd(); });
+  document.getElementById("addTeamBtn").addEventListener("click", tryAdd);
+  [teamInput, sportInput].forEach(function(i){
+    i.addEventListener("keydown", function(e){ if (e.key === "Enter") tryAdd(); });
   });
 
-  // ---- today strip (sample data, honestly labelled) ----
-  var SAMPLE_GAMES = [
-    { home: "Edmonton Oilers", away: "Calgary Flames", hs: 4, as: 2, status: "live", clock: "3RD · 8:12" },
-    { home: "Toronto Maple Leafs", away: "Boston Bruins", hs: 4, as: 1, status: "final" },
-    { home: "Winnipeg Jets", away: "Colorado Avalanche", hs: null, as: null, status: "7:00 PM MT" }
-  ];
+  // ---- scoreboard ----
+  function gameRow(name, pts, other, hasScore, crestSize){
+    var row = el("div", "g-row");
+    row.appendChild(crestEl(name, crestSize));
+    var losing = hasScore && pts < other;
+    row.appendChild(el("span", "tm" + (losing ? " lose" : ""), name));
+    if (follows(name)) row.appendChild(el("span", "mine", "YOURS"));
+    row.appendChild(el("span", "pts" + (hasScore ? (losing ? " lose" : "") : " none"), hasScore ? String(pts) : "–"));
+    return row;
+  }
+
   function renderToday(){
-    var el = document.getElementById("todayGames");
-    el.innerHTML = "";
-    var followedNames = teams.map(function(t){ return slug(t.team); });
-    var relevant = SAMPLE_GAMES.filter(function(g){
-      return followedNames.length === 0 || followedNames.indexOf(slug(g.home)) !== -1 || followedNames.indexOf(slug(g.away)) !== -1;
+    var box = document.getElementById("todayGames");
+    box.innerHTML = "";
+    // Followed teams' games first, then live, final, upcoming.
+    var rank = { live: 0, final: 1 };
+    var games = SAMPLE_GAMES.slice().sort(function(a, b){
+      var fa = follows(a.home) || follows(a.away) ? 0 : 1, fb = follows(b.home) || follows(b.away) ? 0 : 1;
+      if (fa !== fb) return fa - fb;
+      return (rank[a.status] != null ? rank[a.status] : 2) - (rank[b.status] != null ? rank[b.status] : 2);
     });
-    if (relevant.length === 0) relevant = SAMPLE_GAMES;
-    relevant.forEach(function(g){
-      var row = document.createElement("div");
-      row.className = "game";
-      var home = document.createElement("div"); home.className = "side";
-      home.appendChild(crestEl(g.home, "24px"));
-      var hn = document.createElement("span"); hn.className = "tm"; hn.textContent = g.home; home.appendChild(hn);
-      row.appendChild(home);
-
-      var away = document.createElement("div"); away.className = "side";
-      away.appendChild(crestEl(g.away, "24px"));
-      var an = document.createElement("span"); an.className = "tm"; an.textContent = g.away; away.appendChild(an);
-      row.appendChild(away);
-
-      var sc = document.createElement("div"); sc.className = "sc";
-      if (g.status === "live" || g.status === "final") {
-        var lead = g.hs >= g.as ? "home" : "away";
-        sc.innerHTML = "<span class=\"" + (lead === "home" ? "lead" : "") + "\">" + g.hs + "</span>&ndash;<span class=\"" + (lead === "away" ? "lead" : "") + "\">" + g.as + "</span>";
+    games.forEach(function(g, i){
+      var card = el("article", "card game" + (i === 0 ? " hero" : ""));
+      var hasScore = g.status === "live" || g.status === "final";
+      var head = el("div", "g-head");
+      if (g.status === "live") {
+        var live = el("span", "live"); live.appendChild(el("i")); live.appendChild(document.createTextNode("LIVE"));
+        head.appendChild(live);
+        head.appendChild(el("span", null, g.clock));
       } else {
-        sc.textContent = "—";
+        head.appendChild(el("span", null, g.status === "final" ? "FINAL" : "TONIGHT"));
+        head.appendChild(el("span", null, g.status === "final" ? g.sport : g.status.toUpperCase()));
       }
-      row.appendChild(sc);
-
-      var meta = document.createElement("div"); meta.className = "meta";
-      if (g.status === "live") meta.innerHTML = "<span class=\"live\"><i></i>LIVE</span> " + g.clock;
-      else if (g.status === "final") meta.textContent = "FINAL";
-      else meta.textContent = g.status;
-      row.appendChild(meta);
-
-      el.appendChild(row);
+      card.appendChild(head);
+      var size = i === 0 ? "30px" : "24px";
+      card.appendChild(gameRow(g.home, g.hs, g.as, hasScore, size));
+      card.appendChild(gameRow(g.away, g.as, g.hs, hasScore, size));
+      box.appendChild(card);
     });
+
+    // The finding: the game that matters most right now, in words.
+    var lead = games[0];
+    var finding = document.getElementById("finding");
+    var live = SAMPLE_GAMES.filter(function(g){ return g.status === "live"; }).length;
+    var fin = SAMPLE_GAMES.filter(function(g){ return g.status === "final"; }).length;
+    var later = SAMPLE_GAMES.length - live - fin;
+    var summary = live + " live, " + fin + " final, " + later + " later tonight.";
+    if (lead.status === "live") {
+      var up = lead.hs >= lead.as ? lead.home : lead.away, dn = up === lead.home ? lead.away : lead.home;
+      var hi = Math.max(lead.hs, lead.as), lo = Math.min(lead.hs, lead.as);
+      finding.innerHTML = "<b>" + esc(shortName(up)) + " lead the " + esc(shortName(dn)) + " " + hi + "–" + lo +
+        "</b>, " + esc(lead.clock.split(" · ")[1]) + " left in the 3rd. " + esc(summary);
+    } else if (lead.status === "final") {
+      var w = lead.hs >= lead.as ? lead.home : lead.away, l = w === lead.home ? lead.away : lead.home;
+      finding.innerHTML = "<b>" + esc(shortName(w)) + " beat the " + esc(shortName(l)) + " " + Math.max(lead.hs, lead.as) + "–" + Math.min(lead.hs, lead.as) + "</b>. " + esc(summary);
+    } else {
+      finding.innerHTML = "<b>" + esc(shortName(lead.home)) + " host the " + esc(shortName(lead.away)) + " at " + esc(lead.status) + "</b>. " + esc(summary);
+    }
   }
 
   // ---- news ----
@@ -401,17 +539,14 @@
 
   function renderTabs(){
     tabsEl.innerHTML = "";
-    var all = document.createElement("button");
-    all.type = "button"; all.textContent = "All"; all.className = activeTab === "all" ? "on" : "";
-    all.addEventListener("click", function(){ activeTab = "all"; renderTabs(); renderNews(); });
-    tabsEl.appendChild(all);
-    teams.forEach(function(t){
-      var k = teamKey(t);
-      var b = document.createElement("button");
-      b.type = "button"; b.textContent = t.team; b.className = activeTab === k ? "on" : "";
-      b.addEventListener("click", function(){ activeTab = k; renderTabs(); renderNews(); });
+    function tab(label, key){
+      var b = el("button", activeTab === key ? "on" : "", label);
+      b.type = "button"; b.setAttribute("role", "tab"); b.setAttribute("aria-selected", activeTab === key ? "true" : "false");
+      b.addEventListener("click", function(){ activeTab = key; renderTabs(); renderNews(); });
       tabsEl.appendChild(b);
-    });
+    }
+    tab("All teams", "all");
+    teams.forEach(function(t){ tab(t.team, teamKey(t)); });
   }
 
   function fetchNews(team, sport, fresh){
@@ -432,14 +567,13 @@
   }
 
   function newsRow(item, team){
-    var a = document.createElement("a");
-    a.className = "newsrow"; a.href = item.link; a.target = "_blank"; a.rel = "noopener noreferrer";
+    var a = el("a", "newsrow");
+    a.href = item.link; a.target = "_blank"; a.rel = "noopener noreferrer";
     a.appendChild(crestEl(team, "28px"));
-    var body = document.createElement("div"); body.className = "body";
-    var title = document.createElement("div"); title.className = "title"; title.textContent = item.title;
-    var sub = document.createElement("div"); sub.className = "sub";
-    sub.textContent = (item.source || "News") + (item.published_at || item.publishedAt ? " · " + relTime(item.published_at || item.publishedAt) : "") + " · " + team;
-    body.appendChild(title); body.appendChild(sub);
+    var body = el("div", "body");
+    body.appendChild(el("div", "title", item.title));
+    var when = item.published_at || item.publishedAt;
+    body.appendChild(el("div", "sub", (item.source || "News") + (when ? " · " + relTime(when) : "") + " · " + team));
     a.appendChild(body);
     return a;
   }
@@ -449,35 +583,28 @@
     countEl.textContent = "";
 
     if (teams.length === 0) {
-      listEl.innerHTML = "<p class=\"news-empty\">No teams yet — add one above to pull in its real news.</p>";
+      listEl.innerHTML = "<p class=\"news-empty\">Add a team and its real headlines land here, newest first.</p>";
       return;
     }
 
     var targets = activeTab === "all" ? teams : teams.filter(function(t){ return teamKey(t) === activeTab; });
-
-    listEl.innerHTML = "";
-    for (var s = 0; s < Math.min(targets.length * 2, 4); s++) {
-      var skel = document.createElement("div"); skel.className = "skel"; listEl.appendChild(skel);
-    }
+    for (var s = 0; s < 4; s++) listEl.appendChild(el("div", "skel"));
 
     Promise.all(targets.map(function(t){
       return fetchNews(t.team, t.sport).then(function(items){ return { team: t.team, items: items }; })
         .catch(function(e){ return { team: t.team, error: String(e) }; });
     })).then(function(results){
       listEl.innerHTML = "";
-      var anyError = results.every(function(r){ return r.error; });
-      if (anyError) {
-        var err = document.createElement("div"); err.className = "news-error";
-        err.textContent = "Couldn't reach the news service.";
-        var retry = document.createElement("button"); retry.className = "retry"; retry.type = "button"; retry.textContent = "Retry";
+      if (results.every(function(r){ return r.error; })) {
+        listEl.appendChild(el("div", "news-error", "Couldn't reach the news service."));
+        var retry = el("button", "retry", "Retry");
+        retry.type = "button";
         retry.addEventListener("click", renderNews);
-        listEl.appendChild(err); listEl.appendChild(retry);
+        listEl.appendChild(retry);
         return;
       }
       var merged = [];
-      results.forEach(function(r){
-        (r.items || []).forEach(function(it){ merged.push({ item: it, team: r.team }); });
-      });
+      results.forEach(function(r){ (r.items || []).forEach(function(it){ merged.push({ item: it, team: r.team }); }); });
       merged.sort(function(a, b){
         var ad = a.item.published_at || a.item.publishedAt || "";
         var bd = b.item.published_at || b.item.publishedAt || "";
@@ -492,7 +619,74 @@
     });
   }
 
-  renderTeams(); renderTabs(); renderToday(); renderNews();
+  // ---- customize: every choice is the viewer's, saved on this device ----
+  var PREFS_KEY = "bitsports.prefs";
+  // Light accents only, so black text on a filled button always reads. No red (that's LIVE).
+  var ACCENTS = [["White", "#ffffff"], ["Ice", "#7fd4ff"], ["Lime", "#c6f24e"], ["Gold", "#ffd95e"], ["Mint", "#5ef2b0"], ["Peach", "#ffb38a"]];
+  var DEFAULTS = { accent: "#ffffff", scores: "big", size: "normal", heads: "pixel", rail: "right", showScores: true, showNews: true, blink: true };
+  var prefs = {};
+  try { prefs = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}"); } catch (e) { prefs = {}; }
+  Object.keys(DEFAULTS).forEach(function(k){ if (prefs[k] === undefined) prefs[k] = DEFAULTS[k]; });
+
+  function applyPrefs(){
+    var root = document.documentElement;
+    root.style.setProperty("--accent", prefs.accent);
+    root.classList.toggle("compact", prefs.scores === "compact");
+    root.classList.toggle("large", prefs.size === "large");
+    root.classList.toggle("plain", prefs.heads === "plain");
+    root.classList.toggle("rail-left", prefs.rail === "left");
+    root.classList.toggle("hide-scores", !prefs.showScores);
+    root.classList.toggle("hide-news", !prefs.showNews);
+    root.classList.toggle("no-blink", !prefs.blink);
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {}
+    renderPrefControls();
+  }
+  function setPref(k, v){ prefs[k] = v; applyPrefs(); }
+
+  function seg(id, key, options){
+    var box = document.getElementById(id);
+    box.innerHTML = "";
+    options.forEach(function(o){
+      var b = el("button", null, o[0]);
+      b.type = "button";
+      b.setAttribute("aria-pressed", prefs[key] === o[1] ? "true" : "false");
+      b.addEventListener("click", function(){ setPref(key, o[1]); });
+      box.appendChild(b);
+    });
+  }
+  function renderPrefControls(){
+    var sw = document.getElementById("optAccent");
+    sw.innerHTML = "";
+    ACCENTS.forEach(function(a){
+      var b = el("button");
+      b.type = "button";
+      b.setAttribute("aria-label", a[0]);
+      b.setAttribute("aria-pressed", prefs.accent === a[1] ? "true" : "false");
+      var dot = el("span"); dot.style.background = a[1]; b.appendChild(dot);
+      b.addEventListener("click", function(){ setPref("accent", a[1]); });
+      sw.appendChild(b);
+    });
+    seg("optScores", "scores", [["Big", "big"], ["Compact", "compact"]]);
+    seg("optSize", "size", [["Normal", "normal"], ["Large", "large"]]);
+    seg("optHeads", "heads", [["Pixel", "pixel"], ["Plain", "plain"]]);
+    seg("optRail", "rail", [["Right", "right"], ["Left", "left"]]);
+    document.getElementById("optShowScores").checked = prefs.showScores;
+    document.getElementById("optShowNews").checked = prefs.showNews;
+    document.getElementById("optBlink").checked = prefs.blink;
+  }
+  [["optShowScores", "showScores"], ["optShowNews", "showNews"], ["optBlink", "blink"]].forEach(function(p){
+    document.getElementById(p[0]).addEventListener("change", function(e){ setPref(p[1], e.target.checked); });
+  });
+  document.getElementById("resetPrefs").addEventListener("click", function(){
+    prefs = JSON.parse(JSON.stringify(DEFAULTS)); applyPrefs();
+  });
+  var sheet = document.getElementById("customize");
+  document.getElementById("openCustomize").addEventListener("click", function(){ sheet.showModal(); });
+  document.getElementById("closeCustomize").addEventListener("click", function(){ sheet.close(); });
+  sheet.addEventListener("click", function(e){ if (e.target === sheet) sheet.close(); });
+
+  applyPrefs();
+  renderAll();
 })();
 </script>
 </body>
