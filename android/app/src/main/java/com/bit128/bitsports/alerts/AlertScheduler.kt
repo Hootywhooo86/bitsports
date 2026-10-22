@@ -85,7 +85,7 @@ object AlertScheduler {
         am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.toInstant().toEpochMilli(), pending(context, ACTION_DAILY, 0))
     }
 
-    private fun canExact(context: Context): Boolean =
+    fun canExact(context: Context): Boolean =
         Build.VERSION.SDK_INT < 31 || context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
 
     /** One honest sentence when alerts can't work as promised, or null when all is well. */

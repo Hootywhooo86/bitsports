@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -13,33 +14,37 @@ import com.bit128.bitsports.nhl.ShotMark
 import kotlin.math.abs
 
 /**
- * A pixel rink: 100x44 cells over the NHL's -100..100 x -42.5..42.5 coordinates.
- * Each team is drawn attacking one end for the whole game (away right, home left),
- * so the map reads as two heat zones instead of flipping every period.
+ * Shots on the 128-pixel rink. Each team is drawn attacking one end for the whole game (away
+ * right, home left), so the map reads as two pressure zones instead of flipping every period.
  */
 @Composable
 fun ShotMap(shots: List<ShotMark>, away: NhlTeam?, home: NhlTeam?) {
-    val awayAbbrev = away?.abbrev
-    Canvas(Modifier.fillMaxWidth().aspectRatio(100f / 44f)) {
-        val cell = size.width / 100f
-        fun rect(x: Float, y: Float, w: Float, h: Float, color: Color) =
-            drawRect(color, topLeft = Offset(x * cell, y * cell), size = Size(w * cell, h * cell))
-        rect(0f, 0f, 100f, 44f, Color(0xFF0D0D0D))
-        rect(1f, 1f, 98f, 42f, Color(0xFF141414))
-        rect(49f, 1f, 2f, 42f, Color(0xFF3A1A22))      // centre red line
-        rect(37f, 1f, 1f, 42f, Color(0xFF1A2433)); rect(62f, 1f, 1f, 42f, Color(0xFF1A2433)) // blue lines
-        rect(5f, 1f, 1f, 42f, Color(0xFF3A1A22)); rect(94f, 1f, 1f, 42f, Color(0xFF3A1A22))   // goal lines
-        rect(3f, 20f, 2f, 4f, Color(0xFF2A2A2A)); rect(95f, 20f, 2f, 4f, Color(0xFF2A2A2A))   // nets
-        val sorted = shots.sortedBy { it.isGoal } // goals on top
-        for (s in sorted) {
-            val attackingRight = s.teamAbbrev == awayAbbrev
-            val nx = if (attackingRight) abs(s.x) else -abs(s.x)
-            val cx = ((nx + 100f) / 200f * 100f).coerceIn(1f, 97f)
-            val cy = ((42.5f - s.y) / 85f * 44f).coerceIn(1f, 41f)
-            val team = if (attackingRight) away else home
-            val color = if (s.isGoal) Color.White else Color(team?.colors?.first ?: 0xFF8C8C8C)
-            val sz = if (s.isGoal) 3f else 2f
-            rect(cx - sz / 2, cy - sz / 2, sz, sz, color)
+    val grid = remember(shots, away, home) {
+        val g = PixelRink.copy()
+        val awayLed = away?.let { HockeyBoard.led(it.colors.first.toInt() to it.colors.second.toInt()) } ?: HockeyBoard.MUTED
+        val homeLed = home?.let { HockeyBoard.led(it.colors.first.toInt() to it.colors.second.toInt()) } ?: HockeyBoard.MUTED
+        for (s in shots.sortedBy { it.isGoal }) { // goals on top
+            val right = s.teamAbbrev == away?.abbrev
+            val x = if (right) abs(s.x.toFloat()) else -abs(s.x.toFloat())
+            // Mirror y with x so a shot from the left circle stays on the left circle.
+            val y = if ((s.x < 0) == right) -s.y.toFloat() else s.y.toFloat()
+            val (cx, cy) = PixelRink.at(x, y)
+            if (s.isGoal) g.fill(cx - 1, cy - 1, 3, 3, HockeyBoard.WHITE)
+            else g.fill(cx, cy, 2, 2, if (right) awayLed else homeLed)
+        }
+        g
+    }
+    PixelGrid(grid)
+}
+
+/** A [LedGrid] as flat square pixels, edge to edge. */
+@Composable
+fun PixelGrid(grid: LedGrid) {
+    Canvas(Modifier.fillMaxWidth().aspectRatio(grid.cols.toFloat() / grid.rows)) {
+        val cell = size.width / grid.cols
+        for (y in 0 until grid.rows) for (x in 0 until grid.cols) {
+            val v = grid[x, y]
+            if (v != 0) drawRect(Color(v), Offset(x * cell, y * cell), Size(cell + 0.5f, cell + 0.5f))
         }
     }
 }

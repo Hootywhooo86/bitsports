@@ -79,15 +79,22 @@ The Android app (`android/`) is where this lives today:
 ```
 android/app/src/main/java/com/bit128/bitsports/
   MainActivity.kt   # shell: Home / Sports / Settings tabs, pixel bottom nav
-  HomeTab.kt        # your teams only: LED jumbotron, your games, next up, news
-  SportsTab.kt      # every game in the sports you watch, league chips
+  HomeTab.kt        # your teams only: LED jumbotron, your games, next up, standings, news
+  SportsTab.kt      # every game in the sports you watch; NHL adds standings + leaders
+  HockeyViews.kt    # standings (division / wild card / league), leaders, your-team cards
   SettingsTab.kt    # team picker, watched sports, look, goal moment, alerts
   nhl/              # NHL feed: scoreboard, play-by-play, extras (lineups,
                     # box score, matchup, shift chart -> who's on the ice)
   sports/           # ESPN adapter for every other league
-  ui/               # game screen (Game/Lineups/Plays/Stats), pixel kit
-                    # (5x7 LED font, dot-matrix board, icons, jerseys, rink)
+  ui/               # game screen (Game/Lineups/Plays/Stats), pixel kit:
+                    # LedGrid + 5x7 LED font, HockeyBoard (the 128x44 jumbotron),
+                    # PixelRink (128x54 rink), icons, jerseys, sprites (Zamboni)
+  widget/           # team score, score + heat map, NHL scoreboard (128-LED board);
+                    # WidgetTicker refreshes them every minute while a game is live
 ```
+
+Hockey is the design lead: everything new lands on the NHL first, on 128-pixel
+grids, and goes to the other leagues once it's right.
 
 Feeds poll only while the app is on screen (Android cuts background network
 anyway), retry a dropped request twice, and come back on resume.

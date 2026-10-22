@@ -29,7 +29,12 @@ data class Game(
     val away: TeamLine,
     val home: TeamLine,
     val clock: Clock?,
+    /** Live only: who's on the ice by strength, and how long a power play has left. */
+    val situation: Situation? = null,
 )
+
+/** situationCode digits: away goalie, away skaters, home skaters, home goalie ("1451" = home PP). */
+data class Situation(val code: String, val timeRemaining: String? = null)
 
 data class Play(
     val eventId: Int,

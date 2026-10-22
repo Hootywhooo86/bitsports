@@ -82,6 +82,17 @@ private fun LeagueChip(l: League, selected: Boolean, live: Int, onClick: () -> U
 
 @Composable
 private fun NhlBoard(vm: BitsportsViewModel) {
+    Segmented(listOf("Scores", "Standings", "Leaders"), vm.nhlView) { vm.nhlView = it }
+    Spacer(Modifier.height(20.dp))
+    when (vm.nhlView) {
+        1 -> StandingsView(vm)
+        2 -> LeadersView(vm)
+        else -> NhlScores(vm)
+    }
+}
+
+@Composable
+private fun NhlScores(vm: BitsportsViewModel) {
     val note = vm.nhlNote()
     val games = vm.orderedGames()
     SectionHead("NHL", note.text.ifEmpty { "${games.size} games · tap one for lineups and more" }, noteColor = if (note.warn) Warn else Muted)

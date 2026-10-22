@@ -28,8 +28,13 @@ object NhlParser {
                     ?: roster[s.optInt("playerId", -1)]
             }
         }.orEmpty()
+        val g = game(o)
+        // The play-by-play doesn't always carry a top-level situation; the latest play's code is next best.
+        val live = if (g.state.isLive && g.situation == null) {
+            plays.lastOrNull { it.situationCode != null }?.let { g.copy(situation = Situation(it.situationCode!!)) } ?: g
+        } else g
         return GameDetail(
-            game = game(o),
+            game = live,
             plays = plays,
             roster = roster,
             threeStars = stars,
@@ -66,6 +71,9 @@ object NhlParser {
             away = team(o.getJSONObject("awayTeam")),
             home = team(o.getJSONObject("homeTeam")),
             clock = clock,
+            situation = o.optJSONObject("situation")?.let { s ->
+                s.optString("situationCode").takeIf { it.length == 4 }?.let { Situation(it, s.optString("timeRemaining").ifBlank { null }) }
+            },
         )
     }
 

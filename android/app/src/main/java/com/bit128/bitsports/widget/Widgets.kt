@@ -1,5 +1,6 @@
 package com.bit128.bitsports.widget
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -10,15 +11,18 @@ import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
 import com.bit128.bitsports.MainActivity
+import com.bit128.bitsports.PrefsStore
 import com.bit128.bitsports.R
 import com.bit128.bitsports.alerts.AlertCopy
 import com.bit128.bitsports.alerts.AlertNotifier
 import com.bit128.bitsports.alerts.AlertPlanner
+import com.bit128.bitsports.alerts.AlertScheduler
 import com.bit128.bitsports.nhl.DirectNhlSource
 import com.bit128.bitsports.nhl.Game
 import com.bit128.bitsports.nhl.GameAnalysis
 import com.bit128.bitsports.nhl.GameDetail
 import com.bit128.bitsports.nhl.NhlTeams
+import com.bit128.bitsports.nhl.Strengths
 import com.bit128.bitsports.ui.ScoreFormat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,8 +43,23 @@ class RinkWidget : AppWidgetProvider() {
     override fun onDeleted(context: Context, ids: IntArray) = ids.forEach { WidgetPrefs(context).delete(it) }
 }
 
+/** NHL tonight: every game on one LED arena board, followed teams underlined. */
+class ScoresWidget : AppWidgetProvider() {
+    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) = Widgets.refresh(context, goAsync())
+    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) =
+        Widgets.refresh(context, goAsync())
+}
+
 /**
- * Fills both widgets. Fed three ways: the 30-minute widget tick (fetches), the app's own
+ * Keeps widgets live without the app open: once a minute while a game they show is on, at puck
+ * drop for one coming up, and not at all otherwise (the 30-minute widget tick covers the rest).
+ */
+class WidgetTicker : android.content.BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) = Widgets.refresh(context, goAsync())
+}
+
+/**
+ * Fills every widget. Fed three ways: the 30-minute widget tick (fetches), the app's own
  * scoreboard poll, and the game watcher every 15 s while a followed game is live.
  */
 object Widgets {
@@ -48,6 +67,7 @@ object Widgets {
     private const val INK = 0xFFFFFFFF.toInt()
     private const val MUTED = 0xFF8C8C8C.toInt()
     private const val DIM = 0xFF6B6B6B.toInt()
+    private const val WARN = 0xFFFFD95E.toInt()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     /** Last play-by-play per game, so a scoreboard-only update can still redraw the board. */
@@ -56,14 +76,15 @@ object Widgets {
     private fun ids(context: Context, cls: Class<*>): IntArray =
         AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, cls))
 
-    fun any(context: Context) = ids(context, TeamWidget::class.java).isNotEmpty() || ids(context, RinkWidget::class.java).isNotEmpty()
+    fun any(context: Context) = ids(context, TeamWidget::class.java).isNotEmpty() || ids(context, RinkWidget::class.java).isNotEmpty() ||
+        ids(context, ScoresWidget::class.java).isNotEmpty()
 
     /** Fetches today's games (and shots for the rink widgets) and redraws everything. */
     fun refresh(context: Context, pending: android.content.BroadcastReceiver.PendingResult? = null) {
         val app = context.applicationContext
         scope.launch {
             try {
-                if (!any(app)) return@launch
+                if (!any(app)) { cancelTick(app); return@launch }
                 val source = DirectNhlSource()
                 val games = runCatching { source.scoreboard() }.getOrNull()
                 if (games == null) { drawAll(app, null); return@launch }
@@ -113,7 +134,43 @@ object Widgets {
             val game = team?.let { gameFor(list, it) }
             manager.updateAppWidget(id, rinkViews(context, team, game, game?.let { details[it.id] }, cfg))
         }
+        val followed = AlertScheduler.followedAbbrevs(context)
+        val accent = PrefsStore(context).load().accent.toInt().takeIf { it != 0 } ?: INK
+        ids(context, ScoresWidget::class.java).forEach { id ->
+            manager.updateAppWidget(id, scoresViews(context, manager, id, list, followed, accent, offline = games == null && list.isEmpty()))
+        }
+        scheduleTick(context, list)
     }
+
+    // ---------- live ticking ----------
+
+    private fun tickIntent(context: Context) = PendingIntent.getBroadcast(
+        context, 128, Intent(context, WidgetTicker::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
+
+    /** The games some widget is showing right now. */
+    private fun watched(context: Context, games: List<Game>): List<Game> {
+        if (ids(context, ScoresWidget::class.java).isNotEmpty()) return games
+        val prefs = WidgetPrefs(context)
+        val teams = (ids(context, TeamWidget::class.java).toList() + ids(context, RinkWidget::class.java).toList()).mapNotNull { prefs.teamFor(it) }.toSet()
+        return games.filter { it.away.abbrev in teams || it.home.abbrev in teams }
+    }
+
+    private fun scheduleTick(context: Context, games: List<Game>) {
+        val now = System.currentTimeMillis()
+        val shown = watched(context, games)
+        val at = when {
+            shown.any { it.state.isLive } -> now + 60_000
+            else -> shown.filter { !it.state.isOver && it.scheduleOk }.map { it.startUtc.toEpochMilli() }
+                .filter { it > now && it - now < 6 * 3600_000L }.minOrNull()?.let { maxOf(it + 30_000, now + 60_000) }
+        }
+        if (at == null) { cancelTick(context); return }
+        val am = context.getSystemService(AlarmManager::class.java)
+        if (AlertScheduler.canExact(context)) am.setExactAndAllowWhileIdle(AlarmManager.RTC, at, tickIntent(context))
+        else am.setAndAllowWhileIdle(AlarmManager.RTC, at, tickIntent(context))
+    }
+
+    private fun cancelTick(context: Context) = context.getSystemService(AlarmManager::class.java).cancel(tickIntent(context))
 
     fun gameFor(games: List<Game>, team: String): Game? =
         games.filter { it.away.abbrev == team || it.home.abbrev == team }.minByOrNull { if (it.state.isLive) 0 else 1 }
@@ -145,7 +202,7 @@ object Widgets {
             c.inIntermission -> "After the " + AlertPlanner.periodLabel(c.period, c.periodType)
             else -> AlertPlanner.periodLabel(c.period, c.periodType) + " " + c.timeRemaining
         }
-        return listOfNotNull(clock, shots).joinToString(" · ")
+        return listOfNotNull(clock, Strengths.banner(g)?.text, shots).joinToString(" · ")
     }
 
     private fun teamViews(context: Context, team: String?, g: Game?, offline: Boolean): RemoteViews {
@@ -217,6 +274,31 @@ object Widgets {
         return v
     }
 
+    private fun scoresViews(
+        context: Context, manager: AppWidgetManager, id: Int, games: List<Game>, followed: Set<String>, accent: Int, offline: Boolean,
+    ): RemoteViews {
+        val v = RemoteViews(context.packageName, R.layout.widget_scores)
+        v.setOnClickPendingIntent(android.R.id.background, open(context, null))
+        val ordered = ScoreFormat.order(games, followed)
+        val live = games.count { it.state.isLive }
+        v.setTextViewText(R.id.status, when {
+            offline -> "OFFLINE"
+            live > 0 -> "■ $live LIVE"
+            games.isEmpty() -> ""
+            else -> "${games.size} GAMES"
+        })
+        v.setTextColor(R.id.status, if (live > 0) LIVE_RED else MUTED)
+        // How many rows fit: the board keeps 128 LEDs across, so its height in LEDs follows the widget's shape.
+        val o = manager.getAppWidgetOptions(id)
+        val w = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250).coerceAtLeast(110) - 28
+        val h = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 180).coerceAtLeast(60) - 52
+        val maxGames = ((h.toFloat() / w * ScoreboardLeds.COLS + 2) / ScoreboardLeds.ROW_H).toInt().coerceIn(1, 16)
+        val grid = ScoreboardLeds.build(ordered, followed, accent, maxGames)
+        v.setImageViewBitmap(R.id.board, ScoreboardLeds.bitmap(grid))
+        v.setTextViewText(R.id.more, if (ordered.size > maxGames) "+${ordered.size - maxGames} more · tap for all" else "")
+        return v
+    }
+
     private fun rinkViews(context: Context, team: String?, g: Game?, d: GameDetail?, cfg: WidgetConfig): RemoteViews {
         val v = RemoteViews(context.packageName, R.layout.widget_rink)
         v.setOnClickPendingIntent(android.R.id.background, open(context, g))
@@ -251,7 +333,9 @@ object Widgets {
                     else -> ScoreFormat.status(g)
                 })
                 v.setTextColor(R.id.status, if (live) LIVE_RED else MUTED)
-                v.setTextViewText(R.id.shots, if (g.away.sog != null) "SHOTS ${g.away.sog}–${g.home.sog}" else "")
+                val banner = Strengths.banner(g)
+                v.setTextViewText(R.id.shots, banner?.text ?: if (g.away.sog != null) "SHOTS ${g.away.sog}–${g.home.sog}" else "")
+                v.setTextColor(R.id.shots, if (banner != null) WARN else MUTED)
             }
         }
         val shots = d?.let { GameAnalysis.shots(it) }.orEmpty()

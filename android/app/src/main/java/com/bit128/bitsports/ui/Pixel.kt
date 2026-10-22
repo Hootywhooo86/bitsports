@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -19,9 +22,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.bit128.bitsports.sports.SportIcon
+import kotlinx.coroutines.delay
 
 // The 128-pixel kit: everything here is drawn cell by cell on a grid, never scaled
 // bitmaps, so it stays crisp at any size. Colour still only ever means data.
@@ -129,6 +134,17 @@ fun ledColor(c1: Color, c2: Color): Color {
 sealed class Led {
     data class Text(val text: String, val x: Int, val y: Int, val color: Color, val scale: Int = 1) : Led()
     data class Fill(val x: Int, val y: Int, val w: Int, val h: Int, val color: Color) : Led()
+    data class Sprite(val art: Array<String>, val x: Int, val y: Int, val palette: Map<Char, Color>) : Led()
+}
+
+fun ledGrid(cols: Int, rows: Int, items: List<Led>): LedGrid = LedGrid(cols, rows).apply {
+    items.forEach { item ->
+        when (item) {
+            is Led.Fill -> fill(item.x, item.y, item.w, item.h, item.color.toArgb())
+            is Led.Text -> text(item.text, item.x, item.y, item.color.toArgb(), item.scale)
+            is Led.Sprite -> sprite(item.art, item.x, item.y, item.palette.mapValues { it.value.toArgb() })
+        }
+    }
 }
 
 /**
@@ -137,32 +153,41 @@ sealed class Led {
  */
 @Composable
 fun LedBoard(cols: Int, rows: Int, items: List<Led>, modifier: Modifier = Modifier, unlit: Color = Color(0xFF161616)) {
+    val grid = remember(items, cols, rows) { ledGrid(cols, rows, items) }
+    LedBoard(grid, modifier, unlit)
+}
+
+@Composable
+fun LedBoard(grid: LedGrid, modifier: Modifier = Modifier, unlit: Color = Color(0xFF161616)) {
     val sweep = remember { Animatable(0f) }
     LaunchedEffect(Unit) { sweep.animateTo(1f, tween(650, easing = LinearEasing)) }
-    val lit = remember(items, cols, rows) {
-        val grid = arrayOfNulls<Color>(cols * rows)
-        fun put(x: Int, y: Int, c: Color) { if (x in 0 until cols && y in 0 until rows) grid[y * cols + x] = c }
-        items.forEach { item ->
-            when (item) {
-                is Led.Fill -> for (y in item.y until item.y + item.h) for (x in item.x until item.x + item.w) put(x, y, item.color)
-                is Led.Text -> PixelFont.cells(item.text, item.x, item.y, item.scale) { x, y -> put(x, y, item.color) }
-            }
-        }
-        grid
-    }
+    val cols = grid.cols
+    val rows = grid.rows
+    val lit = grid.cells
     Canvas(modifier.fillMaxWidth().aspectRatio(cols.toFloat() / rows)) {
         val cell = size.width / cols
-        val dot = cell * 0.78f
+        val dot = cell * 0.8f
         val inset = (cell - dot) / 2
         val reach = (sweep.value * (cols + 6)).toInt()
         for (y in 0 until rows) for (x in 0 until cols) {
-            val c = lit[y * cols + x]?.takeIf { x <= reach } ?: unlit
+            val v = lit[y * cols + x]
+            val c = if (v != 0 && x <= reach) Color(v) else unlit
             drawRoundRect(
                 c, topLeft = Offset(x * cell + inset, y * cell + inset), size = Size(dot, dot),
                 cornerRadius = CornerRadius(dot * 0.3f),
             )
         }
     }
+}
+
+/** The jumbotron, animated: the Zamboni drives and an empty net blinks. */
+@Composable
+fun HockeyLedBoard(input: HockeyBoard.Input, modifier: Modifier = Modifier) {
+    val animated = input.zone is HockeyBoard.Zone.Zamboni || (input.zone as? HockeyBoard.Zone.Line)?.blink == true
+    var frame by remember { mutableIntStateOf(0) }
+    if (animated) LaunchedEffect(Unit) { while (true) { delay(120); frame++ } }
+    val grid = remember(input, frame) { HockeyBoard.build(input, frame) }
+    LedBoard(grid, modifier)
 }
 
 /** Centred x for [text] on a board [cols] wide. */

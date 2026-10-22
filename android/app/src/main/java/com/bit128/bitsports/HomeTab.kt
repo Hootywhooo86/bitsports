@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -23,12 +24,11 @@ import androidx.compose.ui.unit.sp
 import com.bit128.bitsports.nhl.Game
 import com.bit128.bitsports.sports.EspnGame
 import com.bit128.bitsports.sports.EspnState
-import com.bit128.bitsports.ui.Led
+import com.bit128.bitsports.ui.HockeyBoard
+import com.bit128.bitsports.ui.HockeyLedBoard
 import com.bit128.bitsports.ui.LedBoard
+import com.bit128.bitsports.ui.LedGrid
 import com.bit128.bitsports.ui.PixelFont
-import com.bit128.bitsports.ui.ScoreFormat
-import com.bit128.bitsports.ui.centerX
-import com.bit128.bitsports.ui.ledColor
 
 /** Home is only about your teams: their games up top, their news under it. */
 @Composable
@@ -41,6 +41,10 @@ fun HomeTab(vm: BitsportsViewModel) {
         Jumbotron(vm, nhl, other)
         Spacer(Modifier.height(28.dp))
         YourGames(vm, nhl, other)
+        if (vm.followedAbbrevs().any { vm.standingFor(it) != null }) {
+            Spacer(Modifier.height(36.dp))
+            YourTeamsCards(vm)
+        }
         if (ui.showNews) {
             Spacer(Modifier.height(36.dp))
             NewsSection(vm)
@@ -50,94 +54,77 @@ fun HomeTab(vm: BitsportsViewModel) {
     }
 }
 
-internal const val BOARD_COLS = 80
-internal const val BOARD_ROWS = 28
 
 /** The arena board: your lead game in LED dots. Live beats upcoming beats final. */
 @Composable
 private fun Jumbotron(vm: BitsportsViewModel, nhl: List<Game>, other: List<EspnGame>) {
-    val accent = Color(LocalUi.current.accent)
+    val accent = LocalUi.current.accent.toInt()
     val leadNhl = nhl.firstOrNull()
     val leadOther = other.firstOrNull()
     val useOther = leadOther != null && (leadNhl == null || (leadOther.isLive && !leadNhl.state.isLive))
-    val board: List<Led>
     val onClick: (() -> Unit)?
+    val content: @Composable () -> Unit
     when {
         vm.teams.isEmpty() -> {
-            board = message("PICK YOUR", "TEAMS", "TAP HERE", accent)
+            content = { LedBoard(messageBoard("PICK YOUR", "TEAMS", "TAP HERE", accent)) }
             onClick = { vm.tab = Tab.SETTINGS }
         }
         useOther && leadOther != null -> {
-            board = scoreBoard(
-                leadOther.away.abbrev, espnColors(leadOther.away), leadOther.home.abbrev, espnColors(leadOther.home),
-                leadOther.away.score.takeIf { leadOther.state != EspnState.PRE },
-                leadOther.home.score.takeIf { leadOther.state != EspnState.PRE },
-                espnWhen(leadOther), leadOther.isLive,
+            val g = leadOther
+            val has = g.state != EspnState.PRE
+            fun ints(t: com.bit128.bitsports.sports.EspnTeam) = espnColors(t).let { it.first.toArgb() to it.second.toArgb() }
+            val input = HockeyBoard.Input(
+                away = g.away.abbrev, awayColors = ints(g.away), home = g.home.abbrev, homeColors = ints(g.home),
+                awayScore = g.away.score?.toIntOrNull()?.takeIf { has }, homeScore = g.home.score?.toIntOrNull()?.takeIf { has },
+                clock = espnWhen(g).uppercase(), clockColor = if (g.isLive) HockeyBoard.LIVE else HockeyBoard.MUTED,
+                awaySub = g.away.record, homeSub = g.home.record, zone = HockeyBoard.Zone.None, progress = null, accent = accent,
             )
-            onClick = { vm.sportsLeague = leadOther.league.key; vm.tab = Tab.SPORTS }
+            content = { HockeyLedBoard(input) }
+            onClick = { vm.sportsLeague = g.league.key; vm.tab = Tab.SPORTS }
         }
         leadNhl != null -> {
             val g = leadNhl
-            val has = g.state.isLive || g.state.isOver
-            board = scoreBoard(
-                g.away.abbrev, teamColors(teamName(g.away.abbrev)), g.home.abbrev, teamColors(teamName(g.home.abbrev)),
-                g.away.score?.toString()?.takeIf { has }, g.home.score?.toString()?.takeIf { has },
-                ScoreFormat.status(g).replace("LIVE · ", ""), g.state.isLive,
-            )
+            val records = vm.standingFor(g.away.abbrev)?.record to vm.standingFor(g.home.abbrev)?.record
+            val input = HockeyBoard.input(g, accent, vm.now, records)
+            content = { HockeyLedBoard(input) }
             onClick = { vm.openGame(g.id) }
         }
         !vm.gamesLoaded -> {
-            board = message("LOADING", "", "", accent)
+            content = { LedBoard(messageBoard("LOADING", "", "", accent)) }
             onClick = null
         }
         else -> {
             val next = vm.nextGames.values.minByOrNull { it.startUtc }
-            board = if (next != null) {
-                message("NEXT UP", "${next.away.abbrev} @ ${next.home.abbrev}", whenText(next.startUtc), accent)
+            val board = if (next != null) {
+                messageBoard("NEXT UP", "${next.away.abbrev} @ ${next.home.abbrev}", whenText(next.startUtc), accent)
             } else {
-                message("NO GAMES", "TODAY", "", accent)
+                messageBoard("NO GAMES", "TODAY", "", accent)
             }
+            content = { LedBoard(board) }
             onClick = { vm.tab = Tab.SPORTS }
         }
     }
     CardBox(if (onClick != null) Modifier.clip(CardShape).clickable(onClick = onClick) else Modifier) {
-        Box(Modifier.padding(10.dp)) { LedBoard(BOARD_COLS, BOARD_ROWS, board) }
+        Box(Modifier.padding(10.dp)) { content() }
     }
 }
 
-private fun message(top: String, mid: String, bottom: String, accent: Color): List<Led> = listOfNotNull(
-    Led.Text(top, centerX(top, BOARD_COLS), 3, accent),
-    mid.takeIf { it.isNotEmpty() }?.let { m ->
-        // Double size only when it fits across and there's no bottom line to collide with.
-        val scale = if (bottom.isEmpty() && PixelFont.width(m, 2) <= BOARD_COLS - 4) 2 else 1
-        Led.Text(m, centerX(m, BOARD_COLS, scale), 11, Color.White, scale)
-    },
-    bottom.takeIf { it.isNotEmpty() }?.let { Led.Text(it.uppercase().take(13), centerX(it.take(13), BOARD_COLS), 20, Muted) },
-)
-
-internal fun scoreBoard(
-    away: String, awayColors: Pair<Color, Color>, home: String, homeColors: Pair<Color, Color>,
-    awayScore: String?, homeScore: String?, status: String, live: Boolean,
-): List<Led> {
-    val items = ArrayList<Led>()
-    val a = away.take(4)
-    val h = home.take(4)
-    items += Led.Text(a, 3, 2, ledColor(awayColors.first, awayColors.second))
-    items += Led.Text(h, BOARD_COLS - 3 - PixelFont.width(h), 2, ledColor(homeColors.first, homeColors.second))
-    // Team stripes under each name, both colours.
-    items += Led.Fill(3, 11, PixelFont.width(a), 1, awayColors.first)
-    items += Led.Fill(3, 12, PixelFont.width(a), 1, awayColors.second)
-    items += Led.Fill(BOARD_COLS - 3 - PixelFont.width(h), 11, PixelFont.width(h), 1, homeColors.first)
-    items += Led.Fill(BOARD_COLS - 3 - PixelFont.width(h), 12, PixelFont.width(h), 1, homeColors.second)
-    val mid = if (awayScore != null && homeScore != null) "$awayScore-$homeScore" else "VS"
-    // Big digits when they fit between the names, regular ones when they don't (football scores).
-    val room = BOARD_COLS - 2 * (3 + maxOf(PixelFont.width(a), PixelFont.width(h)) + 2)
-    val scale = if (PixelFont.width(mid, 2) <= room) 2 else 1
-    items += Led.Text(mid, centerX(mid, BOARD_COLS, scale), if (scale == 2) 2 else 5, Color.White, scale)
-    val s = status.uppercase().take(13)
-    items += Led.Text(s, centerX(s, BOARD_COLS), 19, if (live) Live else Muted)
-    if (live) items += Led.Fill(BOARD_COLS / 2 - 1, 26, 2, 1, Live)
-    return items
+/** Words on the jumbotron, with a puck and two crossed sticks so it still reads as a rink board. */
+private fun messageBoard(top: String, mid: String, bottom: String, accent: Int): LedGrid {
+    val g = LedGrid(HockeyBoard.COLS, HockeyBoard.ROWS)
+    g.textCenter(top, 4, accent)
+    if (mid.isNotEmpty()) {
+        val scale = if (PixelFont.width(mid, 2) <= HockeyBoard.COLS - 8) 2 else 1
+        g.textCenter(mid, if (scale == 2) 14 else 17, HockeyBoard.WHITE, scale)
+    }
+    if (bottom.isNotEmpty()) g.textCenter(bottom.uppercase().take(20), 32, HockeyBoard.MUTED)
+    // Crossed sticks in the corners: a shaft of diagonal pixels and a 3-pixel blade.
+    for (i in 0 until 10) {
+        g.put(4 + i, 4 + i, HockeyBoard.DIM); g.put(123 - i, 4 + i, HockeyBoard.DIM)
+    }
+    g.fill(13, 14, 4, 1, HockeyBoard.MUTED); g.fill(111, 14, 4, 1, HockeyBoard.MUTED)
+    g.sprite(com.bit128.bitsports.ui.Sprites.PUCK, 62, 40, mapOf('k' to HockeyBoard.MUTED))
+    return g
 }
 
 @Composable

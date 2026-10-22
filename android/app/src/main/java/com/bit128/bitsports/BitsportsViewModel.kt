@@ -67,6 +67,8 @@ class BitsportsViewModel(
 
     var tab by mutableStateOf(Tab.HOME)
     var sportsLeague by mutableStateOf<String?>(null)
+    /** NHL on the Sports tab: 0 scores, 1 standings, 2 leaders. */
+    var nhlView by mutableStateOf(0)
 
     var activeTab by mutableStateOf(ALL_TAB)
         private set
@@ -95,6 +97,13 @@ class BitsportsViewModel(
     /** Next game for each followed NHL team that has none today. */
     var nextGames by mutableStateOf<Map<String, Game>>(emptyMap())
         private set
+    var standings by mutableStateOf<List<com.bit128.bitsports.nhl.StandingRow>>(emptyList())
+        private set
+    var leaders by mutableStateOf<List<com.bit128.bitsports.nhl.LeaderBoard>>(emptyList())
+        private set
+    var leagueError by mutableStateOf<String?>(null)
+        private set
+    private var leagueAt: Instant? = null
     /** Ticks every few seconds so "updated Ns ago" labels stay current. */
     var now by mutableStateOf(Instant.now())
         private set
@@ -202,9 +211,29 @@ class BitsportsViewModel(
             false
         }
         gamesLoaded = true
-        if (ok) refreshNextGames()
+        if (ok) {
+            refreshNextGames()
+            if (leagueAt == null || Duration.between(leagueAt, Instant.now()).toMinutes() >= 30) refreshLeagueOnce()
+        }
         return ok
     }
+
+    fun refreshLeague() { viewModelScope.launch { refreshLeagueOnce() } }
+
+    /** Standings and stat leaders move once a night, so every 30 minutes is plenty. */
+    private suspend fun refreshLeagueOnce() {
+        try {
+            standings = source.standings()
+            leaders = try { source.leaders() } catch (e: java.io.IOException) { leaders }
+            leagueAt = Instant.now()
+            leagueError = null
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            leagueError = "Couldn't reach the NHL standings."
+        }
+    }
+
+    fun standingFor(abbrev: String) = standings.firstOrNull { it.abbrev == abbrev }
 
     /** For followed teams that aren't playing today: when's the next one? Best effort. */
     private suspend fun refreshNextGames() {

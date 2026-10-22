@@ -15,6 +15,8 @@ interface NhlSource {
     suspend fun playByPlay(gameId: Long): GameDetail
     suspend fun extras(gameId: Long): GameExtras = GameExtras()
     suspend fun nextGames(abbrev: String): List<Game> = emptyList()
+    suspend fun standings(): List<StandingRow> = emptyList()
+    suspend fun leaders(): List<LeaderBoard> = emptyList()
 }
 
 class DirectNhlSource(
@@ -34,6 +36,16 @@ class DirectNhlSource(
         val box = optional("$base/gamecenter/$gameId/boxscore")
         val shifts = optional("$stats/shiftcharts?cayenneExp=gameId=$gameId")
         return NhlExtrasParser.extras(landing, rail, box, shifts)
+    }
+
+    override suspend fun standings(): List<StandingRow> = NhlLeagueParser.standings(get("$base/standings/now"))
+
+    override suspend fun leaders(): List<LeaderBoard> {
+        suspend fun optional(url: String) = try { get(url) } catch (e: IOException) { null }
+        val skaters = optional("$base/skater-stats-leaders/current?categories=points,goals,assists&limit=10")
+        val goalies = optional("$base/goalie-stats-leaders/current?categories=wins,savePctg,goalsAgainstAverage&limit=10")
+        if (skaters == null && goalies == null) throw IOException("NHL leaders unreachable")
+        return NhlLeagueParser.leaders(skaters, goalies)
     }
 
     override suspend fun nextGames(abbrev: String): List<Game> =

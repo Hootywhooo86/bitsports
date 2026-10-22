@@ -109,14 +109,7 @@ private fun Board(g: Game, x: GameExtras?) {
     val hasScore = g.state.isLive || g.state.isOver
     CardBox {
         Column(Modifier.padding(10.dp)) {
-            LedBoard(
-                BOARD_COLS, BOARD_ROWS,
-                scoreBoard(
-                    g.away.abbrev, colorsOf(g.away.abbrev), g.home.abbrev, colorsOf(g.home.abbrev),
-                    g.away.score?.toString()?.takeIf { hasScore }, g.home.score?.toString()?.takeIf { hasScore },
-                    ScoreFormat.status(g).replace("LIVE · ", ""), g.state.isLive,
-                ),
-            )
+            HockeyLedBoard(HockeyBoard.input(g, LocalUi.current.accent.toInt(), records = x?.away?.record to x?.home?.record))
             Spacer(Modifier.height(14.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TeamBlock(g.away.abbrev, x?.away, Modifier.weight(1f))
