@@ -74,7 +74,25 @@ src/
                # 128bitlife subscribes for quests + XP.
 ```
 
-This folder structure is the target once the app has a real build step.
+The Android app (`android/`) is where this lives today:
+
+```
+android/app/src/main/java/com/bit128/bitsports/
+  MainActivity.kt   # shell: Home / Sports / Settings tabs, pixel bottom nav
+  HomeTab.kt        # your teams only: LED jumbotron, your games, next up, news
+  SportsTab.kt      # every game in the sports you watch, league chips
+  SettingsTab.kt    # team picker, watched sports, look, goal moment, alerts
+  nhl/              # NHL feed: scoreboard, play-by-play, extras (lineups,
+                    # box score, matchup, shift chart -> who's on the ice)
+  sports/           # ESPN adapter for every other league
+  ui/               # game screen (Game/Lineups/Plays/Stats), pixel kit
+                    # (5x7 LED font, dot-matrix board, icons, jerseys, rink)
+```
+
+Feeds poll only while the app is on screen (Android cuts background network
+anyway), retry a dropped request twice, and come back on resume.
+
+This folder structure is the target for the web version once it has a real build step.
 Today everything — including news — lives inline in `index.html`; `src/news/`
 below is where that logic moves once there's a bundler.
 

@@ -4,14 +4,15 @@ import android.content.Context
 import com.bit128.bitsports.alerts.AlertPrefs
 
 // Every look choice is the viewer's, saved on this device. Mirrors the
-// Customize sheet in index.html (localStorage "bitsports.prefs").
+// Settings tab here and the Customize sheet in index.html (localStorage "bitsports.prefs").
 data class UiPrefs(
     val accent: Long = 0xFFFFFFFF,
     val compactScores: Boolean = false,
     val largeText: Boolean = false,
     val plainHeadings: Boolean = false,
-    val showScores: Boolean = true,
     val showNews: Boolean = true,
+    /** League keys shown on the Sports tab (sports.Leagues). */
+    val watched: Set<String> = com.bit128.bitsports.sports.Leagues.defaultWatched,
     val blinkLive: Boolean = true,
     // GOAL moment: "lamp", "burst", "puck" or "text"; and the 8-bit horn.
     val goalStyle: String = "lamp",
@@ -52,8 +53,8 @@ class PrefsStore(context: Context) {
             compactScores = prefs.getBoolean("compactScores", d.compactScores),
             largeText = prefs.getBoolean("largeText", d.largeText),
             plainHeadings = prefs.getBoolean("plainHeadings", d.plainHeadings),
-            showScores = prefs.getBoolean("showScores", d.showScores),
             showNews = prefs.getBoolean("showNews", d.showNews),
+            watched = prefs.getStringSet("watched", null)?.toSet() ?: d.watched,
             blinkLive = prefs.getBoolean("blinkLive", d.blinkLive),
             goalStyle = prefs.getString("goalStyle", d.goalStyle) ?: d.goalStyle,
             goalSound = prefs.getBoolean("goalSound", d.goalSound),
@@ -72,8 +73,8 @@ class PrefsStore(context: Context) {
             .putBoolean("compactScores", p.compactScores)
             .putBoolean("largeText", p.largeText)
             .putBoolean("plainHeadings", p.plainHeadings)
-            .putBoolean("showScores", p.showScores)
             .putBoolean("showNews", p.showNews)
+            .putStringSet("watched", p.watched)
             .putBoolean("blinkLive", p.blinkLive)
             .putString("goalStyle", p.goalStyle)
             .putBoolean("goalSound", p.goalSound)
