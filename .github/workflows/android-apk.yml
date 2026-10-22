@@ -1,6 +1,7 @@
 name: Android APK
 
-# Tests, builds the family-signed release APK, and on a v* tag publishes it to Releases.
+# Tests, builds the family-signed release APK, and publishes it to Releases whenever its
+# versionName is new (or a v* tag is pushed).
 on:
   push:
     branches: ["**"]
@@ -61,12 +62,26 @@ jobs:
           path: android/bitsports-v*.apk
           if-no-files-found: error
 
+      # Every new versionName gets a Release with the APK attached, from whichever branch built it
+      # first; pushing a v* tag still publishes too. Rebuilds of a version that's already out don't.
+      - name: Is this version released yet?
+        id: released
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${VERSION}" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to Releases
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || steps.released.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: bitsports ${{ github.ref_name }}
-          prerelease: true
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', env.VERSION) }}
+          target_commitish: ${{ github.sha }}
+          name: bitsports ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', env.VERSION) }}
+          make_latest: true
           files: android/bitsports-v*.apk
           body_path: RELEASE_NOTES.md
