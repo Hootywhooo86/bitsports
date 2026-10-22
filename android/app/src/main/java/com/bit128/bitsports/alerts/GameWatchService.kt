@@ -129,6 +129,7 @@ class GameWatchService : Service() {
             }
         }
         updateScoreboard(d, null)
+        com.bit128.bitsports.widget.Widgets.push(this, d)
         return AlertPlanner.shouldStopWatching(d.game, Instant.now())
     }
 

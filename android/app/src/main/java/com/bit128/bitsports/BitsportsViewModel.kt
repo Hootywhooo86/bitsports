@@ -114,6 +114,7 @@ class BitsportsViewModel(
             games = source.scoreboard()
             gamesFetchedAt = Instant.now()
             gamesError = null
+            com.bit128.bitsports.widget.Widgets.pushScoreboard(appContext, games)
         } catch (e: Exception) {
             gamesError = "Couldn't reach the NHL feed."
         }
@@ -205,6 +206,7 @@ class BitsportsViewModel(
         teams = teams + FollowedTeam(team.trim(), sport.trim())
         store.save(teams)
         AlertScheduler.refresh(appContext)
+        com.bit128.bitsports.widget.Widgets.refresh(appContext)
         refreshNews()
     }
 
@@ -212,6 +214,7 @@ class BitsportsViewModel(
         teams = teams.filter { !(slugify(it.sport) == slugify(t.sport) && slugify(it.team) == slugify(t.team)) }
         store.save(teams)
         AlertScheduler.refresh(appContext)
+        com.bit128.bitsports.widget.Widgets.refresh(appContext)
         if (activeTab == t.key) activeTab = ALL_TAB
         refreshNews()
     }

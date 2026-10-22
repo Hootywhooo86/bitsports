@@ -1,11 +1,9 @@
-## bitsports 0.3.0 — live NHL
+## bitsports 0.4.0 — home-screen widgets
 
-- **Live NHL scores**: every game today, your teams first, updating every 15 seconds while a game is live.
-- **Game screen**: tap a game for a pixel shot map, every goal (scorer, assists, strength, goalie, ▶ clip), period stats and the three stars.
-- **AI period recaps** written on your phone by bitcall's on-device model (needs bitcall with AI turned on).
-- **GOAL moment**: the screen lights up when your team scores. Choose Lamp, Burst, Puck or Text, with or without the 8-bit horn, and preview it in Customize.
-- **Game alerts** with the app closed: 30-minute heads-up, goals, replays, end-of-period stats, AI recap, final score. Turn each one on or off in Customize.
-- **Mini scoreboard** in your notifications while a followed game is on.
-- One-tap "Playing today" picks now come from real games.
+- **Team score widget** (2×2, stretches to any size): your team's game today in big pixel numbers — leading score in white, trailing dimmed — with the clock and shots underneath. Before puck drop it shows the start time and opponent. Shrink it to one row for a single scoreboard line.
+- **Score + heat map widget** (4×2): the score over an **LED arena board**. Each team's shots light up the end under its name in that team's colour — the brighter, the more shots from there — and goals light up white.
+- **Make each widget yours**: pick any NHL team (or "My team" to follow your list), and for the heat map choose both teams or just yours, LED or solid board. A live preview shows the board as you change it. Long-press a widget → reconfigure to change it later.
+- Widgets update every 15 seconds while your team's game is live, whenever the app checks scores, and every 30 minutes otherwise. Tap one to open that game.
+- Fix: the live mini-scoreboard notification couldn't draw its team colours on some phones.
 
 Install: download the APK below and open it. It installs over the previous version.

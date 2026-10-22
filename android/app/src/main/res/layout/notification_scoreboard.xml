@@ -19,8 +19,8 @@
             android:layout_weight="1"
             android:gravity="center_vertical"
             android:orientation="horizontal">
-            <View android:id="@+id/away_c1" android:layout_width="11dp" android:layout_height="22dp" />
-            <View android:id="@+id/away_c2" android:layout_width="11dp" android:layout_height="22dp" />
+            <ImageView android:id="@+id/away_c1" android:layout_width="11dp" android:layout_height="22dp" />
+            <ImageView android:id="@+id/away_c2" android:layout_width="11dp" android:layout_height="22dp" />
             <TextView
                 android:id="@+id/away_abbrev"
                 android:layout_width="wrap_content"
@@ -52,8 +52,8 @@
                 android:fontFamily="@font/silkscreen_regular"
                 android:textSize="14sp"
                 android:textStyle="bold" />
-            <View android:id="@+id/home_c1" android:layout_width="11dp" android:layout_height="22dp" />
-            <View android:id="@+id/home_c2" android:layout_width="11dp" android:layout_height="22dp" />
+            <ImageView android:id="@+id/home_c1" android:layout_width="11dp" android:layout_height="22dp" />
+            <ImageView android:id="@+id/home_c2" android:layout_width="11dp" android:layout_height="22dp" />
         </LinearLayout>
     </LinearLayout>
 

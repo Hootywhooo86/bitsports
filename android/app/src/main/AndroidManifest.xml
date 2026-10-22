@@ -33,6 +33,29 @@
             </intent-filter>
         </activity>
 
+        <!-- Home-screen widgets: team score, and score + LED heat map. -->
+        <receiver android:name=".widget.TeamWidget" android:exported="false" android:label="@string/widget_team_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_team_info" />
+        </receiver>
+        <receiver android:name=".widget.RinkWidget" android:exported="false" android:label="@string/widget_rink_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_rink_info" />
+        </receiver>
+        <activity
+            android:name=".widget.WidgetSetupActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Material.NoActionBar">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".alerts.GameWatchService"
             android:exported="false"

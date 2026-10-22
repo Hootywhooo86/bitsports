@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 128bit card: flat #0d0d0d, one quiet #242424 edge so it holds on any wallpaper. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#0D0D0D" />
+    <stroke android:width="1dp" android:color="#242424" />
+    <corners android:radius="@dimen/widget_radius" />
+</shape>

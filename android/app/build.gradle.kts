@@ -13,7 +13,7 @@ android {
         targetSdk = 34
         // CI passes 100 + run number so every build installs over the last one.
         versionCode = (System.getenv("BITSPORTS_VERSION_CODE") ?: "3").toInt()
-        versionName = "0.3.0"
+        versionName = "0.4.0"
     }
 
     // Release builds are signed with the 128bit family key (the Bitcall release key), so the
