@@ -146,15 +146,17 @@ private fun AlertsOffBanner(vm: BitsportsViewModel) {
 }
 
 /** Words on the jumbotron, with a puck and two crossed sticks so it still reads as a rink board. */
-private fun messageBoard(top: String, mid: String, bottom: String, accent: Int): LedGrid {
+internal fun messageBoard(top: String, mid: String, bottom: String, accent: Int): LedGrid {
     val g = LedGrid(HockeyBoard.COLS, HockeyBoard.ROWS)
     g.textCenter(top, 4, accent)
     if (mid.isNotEmpty()) {
-        val scale = if (PixelFont.width(mid, 2) <= HockeyBoard.COLS - 8) 2 else 1
+        // Double size only if it clears the sticks in the corners (they reach 18 columns in).
+        val scale = if (PixelFont.width(mid, 2) <= HockeyBoard.COLS - 2 * 20) 2 else 1
         g.textCenter(mid, if (scale == 2) 14 else 17, HockeyBoard.WHITE, scale)
     }
     if (bottom.isNotEmpty()) g.textCenter(bottom.uppercase().take(20), 32, HockeyBoard.MUTED)
     // Crossed sticks in the corners: a shaft of diagonal pixels and a 3-pixel blade.
+    g.shape()
     for (i in 0 until 10) {
         g.put(4 + i, 4 + i, HockeyBoard.DIM); g.put(123 - i, 4 + i, HockeyBoard.DIM)
     }

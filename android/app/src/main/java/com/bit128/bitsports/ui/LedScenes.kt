@@ -68,15 +68,15 @@ object LedScenes {
             stripes(c, 40)
         }
         val who = board().apply {
-            headline(lastName(g.scorer), 3, led)
+            headline(lastName(g.scorer), 2, led)
             val tag = listOfNotNull(
                 g.scorerTotal?.let { "GOAL #$it" },
                 RecapPrompt.strengthText(g.strength).takeIf { g.strength != com.bit128.bitsports.nhl.Strength.EV }?.uppercase(),
             ).joinToString(" ")
-            if (tag.isNotEmpty()) textCenter(PixelFont.clean(tag), 21, HockeyBoard.WARN)
+            if (tag.isNotEmpty()) textCenter(PixelFont.clean(tag), 19, HockeyBoard.WARN)
             val assists = g.assists.joinToString(", ") { lastName(it.first) }.ifEmpty { "UNASSISTED" }
-            textCenter(PixelFont.clean(assists).take(20), 30, HockeyBoard.MUTED)
-            text(AlertPlanner.periodLabel(g.period, g.periodType).uppercase() + " " + g.timeInPeriod, 2, 37, HockeyBoard.DIM)
+            textCenter(PixelFont.clean(assists).take(20), 28, HockeyBoard.MUTED)
+            textCenter(AlertPlanner.periodLabel(g.period, g.periodType).uppercase() + " " + g.timeInPeriod, 37, HockeyBoard.DIM)
         }
         val score = HockeyBoard.build(
             HockeyBoard.input(game.copy(

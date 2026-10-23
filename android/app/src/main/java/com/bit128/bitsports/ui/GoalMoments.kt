@@ -54,6 +54,7 @@ object GoalMoments {
         if (on) g.fill(59, 5, 6, 4, HockeyBoard.WHITE)
         g.fill(50, 12, 28, 2, HockeyBoard.DIM)
         // Four beams sweeping round the dome.
+        g.shape()
         if (on) for (k in 0 until 4) {
             val a = (f * 0.5) + k * Math.PI / 2
             for (r in 14..26) {
@@ -67,6 +68,7 @@ object GoalMoments {
 
     private fun burst(g: LedGrid, c: Pair<Int, Int>, f: Int) {
         // Rings expand from the centre, alternating the team's two colours.
+        g.shape()
         for (k in 0 until 3) {
             val r = ((f * 5 + k * 24) % 72).toDouble()
             val col = if (k % 2 == 0) c.first else c.second
@@ -76,8 +78,9 @@ object GoalMoments {
                 g.put(64 + (cos(a) * r).toInt(), 30 + (sin(a) * r * 0.6).toInt(), if (col == 0xFF000000.toInt()) HockeyBoard.DIM else col)
             }
         }
-        // A dark plate behind the word so it always reads.
-        g.fill(18, 17, 92, 27, 0xFF0D0D0D.toInt())
+        // Clear a margin round the word and the bottom lines so no ring ever touches a letter.
+        g.fill(16, 17, 96, 27, 0)
+        g.fill(0, 46, COLS, ROWS - 46, 0)
         g.textCenter("GOAL!", 20, if (f % 4 < 2) HockeyBoard.WHITE else HockeyBoard.led(c), 3)
     }
 

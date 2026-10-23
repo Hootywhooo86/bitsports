@@ -31,6 +31,16 @@ object ScoreboardLeds {
         return g
     }
 
+    // Column plan, every block with at least one dark column either side so nothing touches:
+    //   0-1 stripe | 3-19 away | 22-50 score (fits "11-10") | 52-68 home | 70-71 stripe | 74-84 PP | status, right-aligned to 127
+    private const val AWAY_X = 3
+    private const val SCORE_X = 22
+    private const val SCORE_W = 29
+    private const val HOME_X = 52
+    private const val MARK_X = 74
+    private const val STATUS_FROM_MARKED = 87
+    private const val STATUS_FROM = 74
+
     private fun row(g: LedGrid, game: Game, y: Int, followed: Set<String>, accent: Int) {
         val has = game.state.isLive || game.state.isOver
         val a = game.away.score ?: 0
@@ -39,23 +49,29 @@ object ScoreboardLeds {
         val hc = HockeyBoard.colors(game.home.abbrev)
         // Team stripes: top half first colour, bottom half second.
         g.fill(0, y, 2, 4, ac.first); g.fill(0, y + 4, 2, 3, ac.second)
-        g.fill(65, y, 2, 4, hc.first); g.fill(65, y + 4, 2, 3, hc.second)
+        g.fill(70, y, 2, 4, hc.first); g.fill(70, y + 4, 2, 3, hc.second)
         // Over: the loser's code dims. Live: both stay lit.
         val awayInk = if (game.state.isOver && a < h) HockeyBoard.DIM else HockeyBoard.led(ac)
         val homeInk = if (game.state.isOver && h < a) HockeyBoard.DIM else HockeyBoard.led(hc)
-        g.text(game.away.abbrev.take(3), 3, y, awayInk)
-        g.text(game.home.abbrev.take(3), 47, y, homeInk)
+        g.text(game.away.abbrev.take(3), AWAY_X, y, awayInk)
+        g.text(game.home.abbrev.take(3), HOME_X, y, homeInk)
         val mid = if (has) "$a-$h" else "@"
-        val mx = 22 + (24 - PixelFont.width(mid)) / 2
-        g.text(mid, mx, y, if (has) HockeyBoard.WHITE else HockeyBoard.DIM)
+        g.text(mid, SCORE_X + (SCORE_W - PixelFont.width(mid)) / 2, y, if (has) HockeyBoard.WHITE else HockeyBoard.DIM)
 
         val banner = Strengths.banner(game)
-        if (banner?.kind == Strengths.Kind.PP) g.text("PP", 70, y, HockeyBoard.WARN)
-        if (banner?.kind == Strengths.Kind.EMPTY_NET) g.text("EN", 70, y, HockeyBoard.LIVE)
-        val (status, color) = status(game)
+        val mark = when (banner?.kind) {
+            Strengths.Kind.PP -> "PP" to HockeyBoard.WARN
+            Strengths.Kind.EMPTY_NET -> "EN" to HockeyBoard.LIVE
+            else -> null
+        }
+        mark?.let { (t, c) -> g.text(t, MARK_X, y, c) }
+        val (full, color) = status(game)
+        // With a PP/EN mark there's less room; a long clock then drops its period ("2OT 11:59" → "11:59").
+        val room = COLS - (if (mark != null) STATUS_FROM_MARKED else STATUS_FROM)
+        val status = if (PixelFont.width(full) <= room) full else full.substringAfter(' ')
         g.textRight(status, COLS - 1, y, color)
 
-        if (game.away.abbrev in followed || game.home.abbrev in followed) g.fill(3, y + 8, 61, 1, accent)
+        if (game.away.abbrev in followed || game.home.abbrev in followed) g.fill(AWAY_X, y + 8, 66, 1, accent)
     }
 
     /** Short enough to sit right of the score: "P2 8:41", "INT P1", "F/OT", "7:00PM". */

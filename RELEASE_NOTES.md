@@ -1,4 +1,14 @@
-## bitsports 0.7.1 — goal moments in LED letters
+## bitsports 0.7.2 — cleaner LED spacing
+
+Every LED letter now has at least one dark pixel between it and any line, stripe, bar, sprite or other text, diagonals included. A test now draws every board in the app across hundreds of game states and fails the build if any letter touches anything.
+
+Fixed along the way:
+- **Scoreboard widget**: two-digit scores (11-10) ran into the home team's code, and a long clock (3OT 11:59) could collide with the PP/EN marker. Each part of the row now has its own space; with a PP or EN marker a long clock drops its period.
+- **Goal notification**: the period and time no longer sit on top of the assists line.
+- **"Next up" on the jumbotron**: a long matchup drops to regular size instead of running into the hockey sticks.
+- **Burst goal moment**: the bursting rings stay clear of the letters.
+
+## From 0.7.1 — goal moments in LED letters
 
 - **Settings → Goals + alerts → Goal moment** now shows all four styles as live animated previews, two by two. Tap one to pick it.
 - **Every goal moment is drawn in the same 128-pixel LED letters as the rest of the app**, team and scorer included:
