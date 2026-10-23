@@ -137,6 +137,25 @@ object AlertNotifier {
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .build())
 
+    /** Settings → "Send a test alert": a real goal alert, so you can hear and see what you'll get. */
+    fun test(context: Context, prefs: UiPrefs, teamAbbrev: String?): Boolean {
+        ensureChannels(context)
+        if (!canPost(context)) return false
+        val abbrev = teamAbbrev ?: "EDM"
+        val game = Game(
+            id = -1, state = com.bit128.bitsports.nhl.GameState.LIVE, scheduleOk = true, startUtc = java.time.Instant.now(),
+            away = com.bit128.bitsports.nhl.TeamLine(0, abbrev, 1, 12), home = com.bit128.bitsports.nhl.TeamLine(1, if (abbrev == "CGY") "EDM" else "CGY", 0, 9),
+            clock = null,
+        )
+        val g = GoalEvent(
+            gameId = -1, eventId = 1, teamAbbrev = abbrev, scorer = "Test alert", scorerTotal = null, assists = emptyList(),
+            strength = com.bit128.bitsports.nhl.Strength.EV, shotType = null, goalie = null, period = 1, periodType = "REG",
+            timeInPeriod = "12:34", awayScore = 1, homeScore = 0, clipUrl = null,
+        )
+        goal(context, g, game, prefs)
+        return true
+    }
+
     /** A tap-to-follow nudge when Android won't let the watcher start in the background. */
     fun followNudge(context: Context, game: Game) = post(context, ("n" + game.id).hashCode(),
         base(context, CH_PREGAME, game.id)

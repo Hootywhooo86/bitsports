@@ -137,6 +137,7 @@ fun SettingsTab(vm: BitsportsViewModel) {
                     ToggleRow("End-of-period stats", ui.alertPeriods) { set(ui.copy(alertPeriods = it)) }
                     ToggleRow("AI period recap (needs bitcall)", ui.alertRecap) { set(ui.copy(alertRecap = it)) }
                     ToggleRow("Final score", ui.alertFinal) { set(ui.copy(alertFinal = it)) }
+                    TestAlertButton(vm)
                 }
             }
         }
@@ -316,9 +317,30 @@ private fun FreeformAdd(vm: BitsportsViewModel) {
     }
 }
 
+/** Posts a sample goal alert right now, so you can check alerts reach you before a real game. */
+@Composable
+private fun TestAlertButton(vm: BitsportsViewModel) {
+    val ctx = LocalContext.current
+    var note by remember { mutableStateOf<String?>(null) }
+    Spacer(Modifier.height(8.dp))
+    OutlinedButton(
+        onClick = {
+            val sent = AlertNotifier.test(ctx, vm.ui, vm.followedAbbrevs().firstOrNull())
+            note = if (sent) "Sent. If nothing showed up, check bitsports in your phone's notification settings."
+            else "Notifications are off for bitsports. Tap Allow above."
+        },
+        border = BorderStroke(1.dp, Line2), shape = RoundedCornerShape(11.dp),
+        modifier = Modifier.fillMaxWidth().height(44.dp),
+    ) { Text("Send a test alert", color = TextInk, fontWeight = FontWeight.SemiBold) }
+    note?.let {
+        Spacer(Modifier.height(6.dp))
+        Text(it, color = Muted, fontSize = 12.sp)
+    }
+}
+
 /** Says, in one line, why alerts can't work yet, with the button that fixes it. Re-checks on return. */
 @Composable
-private fun AlertPermissionLine() {
+internal fun AlertPermissionLine() {
     val ctx = LocalContext.current
     var problem by remember { mutableStateOf(AlertScheduler.problem(ctx)) }
     val recheck = { problem = AlertScheduler.problem(ctx); AlertScheduler.refresh(ctx) }

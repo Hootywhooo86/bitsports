@@ -12,15 +12,25 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.bit128.bitsports.alerts.AlertScheduler
 import com.bit128.bitsports.nhl.Game
 import com.bit128.bitsports.sports.EspnGame
 import com.bit128.bitsports.sports.EspnState
@@ -39,6 +49,7 @@ fun HomeTab(vm: BitsportsViewModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(20.dp))
         Jumbotron(vm, nhl, other)
+        AlertsOffBanner(vm)
         Spacer(Modifier.height(28.dp))
         YourGames(vm, nhl, other)
         if (vm.followedAbbrevs().any { vm.standingFor(it) != null }) {
@@ -106,6 +117,31 @@ private fun Jumbotron(vm: BitsportsViewModel, nhl: List<Game>, other: List<EspnG
     }
     CardBox(if (onClick != null) Modifier.clip(CardShape).clickable(onClick = onClick) else Modifier) {
         Box(Modifier.padding(10.dp)) { content() }
+    }
+}
+
+/** When alerts can't reach you, say so where you'll see it, with the one-tap fix. */
+@Composable
+private fun AlertsOffBanner(vm: BitsportsViewModel) {
+    if (vm.followedAbbrevs().isEmpty()) return
+    val ctx = LocalContext.current
+    var problem by remember { mutableStateOf(AlertScheduler.problem(ctx)) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val obs = LifecycleEventObserver { _, e ->
+            if (e == Lifecycle.Event.ON_RESUME) problem = AlertScheduler.problem(ctx)
+        }
+        lifecycle.addObserver(obs)
+        onDispose { lifecycle.removeObserver(obs) }
+    }
+    if (problem == null) return
+    Spacer(Modifier.height(16.dp))
+    CardBox {
+        Column(Modifier.padding(16.dp)) {
+            Label("GAME ALERTS ARE OFF", color = Warn)
+            Spacer(Modifier.height(8.dp))
+            AlertPermissionLine()
+        }
     }
 }
 

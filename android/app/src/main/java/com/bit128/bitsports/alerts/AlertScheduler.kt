@@ -25,12 +25,16 @@ import java.time.ZonedDateTime
 /**
  * Checks today's NHL schedule for the teams you follow and sets two alarms per game:
  * the 30-minute heads-up and the start of live watching 15 minutes before puck drop.
- * Runs when the app opens, every morning at 09:00, and after the phone restarts.
+ * Runs when the app opens, every morning at 09:00 (every 30 minutes until it gets through), after
+ * the phone restarts and after an update. None of it needs the app open: the watcher starts from
+ * the alarm, and if Android blocks that, a once-a-minute alarm checks the game and posts alerts.
  */
 object AlertScheduler {
     private const val ACTION_PREGAME = "com.bit128.bitsports.PREGAME"
     private const val ACTION_WATCH = "com.bit128.bitsports.WATCH"
     private const val ACTION_DAILY = "com.bit128.bitsports.DAILY"
+    private const val ACTION_PULSE = "com.bit128.bitsports.PULSE"
+    private const val PULSE_MS = 60_000L
     private const val EXTRA_GAME = "gameId"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -53,10 +57,12 @@ object AlertScheduler {
                         if (pregameAt.isAfter(now)) alarm(app, ACTION_PREGAME, g.id, pregameAt)
                         else AlarmReceiver.pregame(app, g)
                         if (watchAt.isAfter(now)) alarm(app, ACTION_WATCH, g.id, watchAt)
-                        else if (!WatchStore(app).skippedTonight(g.id)) GameWatchService.start(app, g.id)
+                        else if (!WatchStore(app).skippedTonight(g.id) && !GameWatchService.start(app, g.id)) pulseSoon(app, g.id)
                     }
             } catch (_: Exception) {
-                // Offline: the next app open or the morning check tries again.
+                // Offline: try again in 30 minutes rather than waiting for tomorrow or an app open.
+                // (This replaces the 09:00 alarm; that run puts it back.)
+                alarm(app, ACTION_DAILY, 0, Instant.now().plus(Duration.ofMinutes(30)))
             } finally {
                 onDone()
             }
@@ -77,6 +83,33 @@ object AlertScheduler {
         else am.setWindow(AlarmManager.RTC_WAKEUP, ms, 60_000L, pi)
     }
 
+    /**
+     * The backup for when Android won't let the watcher start from the background: check the game
+     * once a minute from an alarm and post the same alerts, until the watcher can take over.
+     */
+    private fun pulseSoon(context: Context, gameId: Long) = alarm(context, ACTION_PULSE, gameId, Instant.now().plusMillis(PULSE_MS))
+
+    private suspend fun pulse(context: Context, gameId: Long) {
+        val store = WatchStore(context)
+        if (GameWatchService.isWatching(gameId) || store.skippedTonight(gameId)) return
+        val d = try {
+            DirectNhlSource().playByPlay(gameId)
+        } catch (e: Exception) {
+            pulseSoon(context, gameId)
+            return
+        }
+        val prefs = PrefsStore(context).load()
+        val (alerts, next) = AlertPlanner.step(store.state(d.game.id), d, prefs.alertPrefs())
+        store.save(next)
+        AlertNotifier.ensureChannels(context)
+        val goals = com.bit128.bitsports.nhl.GameAnalysis.goals(d)
+        alerts.forEach { AlertNotifier.post(context, it, d.game, prefs, goals) }
+        com.bit128.bitsports.widget.Widgets.push(context, d)
+        if (AlertPlanner.shouldStopWatching(d.game, Instant.now())) return
+        // An exact alarm may start a foreground service, so each pulse tries to hand over to the watcher.
+        if (!GameWatchService.start(context, gameId)) pulseSoon(context, gameId)
+    }
+
     private fun scheduleDaily(context: Context) {
         val zone = ZoneId.systemDefault()
         var next = ZonedDateTime.now(zone).with(LocalTime.of(9, 0))
@@ -91,7 +124,7 @@ object AlertScheduler {
     /** One honest sentence when alerts can't work as promised, or null when all is well. */
     fun problem(context: Context): String? = when {
         !AlertNotifier.canPost(context) -> "Allow notifications so bitsports can tell you about goals."
-        !canExact(context) -> "Allow alarms & reminders so the 30-minute warning arrives on time."
+        !canExact(context) -> "Allow alarms & reminders so live game alerts can start on time."
         else -> null
     }
 
@@ -108,9 +141,13 @@ object AlertScheduler {
                         if (!WatchStore(context).skippedTonight(gameId) && !GameWatchService.start(context, gameId)) {
                             runCatching { DirectNhlSource().scoreboard().firstOrNull { it.id == gameId } }.getOrNull()
                                 ?.let { AlertNotifier.followNudge(context, it) }
+                            pulseSoon(context, gameId)
                         }
                         done.finish()
                     }
+                }
+                ACTION_PULSE -> scope.launch {
+                    try { pulse(context, gameId) } finally { done.finish() }
                 }
                 ACTION_PREGAME -> scope.launch {
                     runCatching { DirectNhlSource().scoreboard().firstOrNull { it.id == gameId } }.getOrNull()?.let { pregame(context, it) }

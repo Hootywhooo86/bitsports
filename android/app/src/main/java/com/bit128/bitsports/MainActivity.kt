@@ -1,10 +1,14 @@
 package com.bit128.bitsports
 
+import android.Manifest
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,9 +18,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.Density
@@ -104,6 +110,7 @@ internal fun teamName(abbrev: String) = NhlTeams.byAbbrev(abbrev)?.fullName ?: a
 @Composable
 fun AppShell(vm: BitsportsViewModel) {
     if (vm.tab != Tab.HOME) BackHandler { vm.tab = Tab.HOME }
+    AskForAlerts(vm)
     Column(Modifier.fillMaxSize()) {
         TopBar(vm)
         Box(Modifier.weight(1f)) {
@@ -114,6 +121,25 @@ fun AppShell(vm: BitsportsViewModel) {
             }
         }
         BottomNav(vm)
+    }
+}
+
+/**
+ * Android 13+ keeps an app silent until you say yes, so ask as soon as you follow an NHL team
+ * (once per launch; Android itself stops asking after two no's, and Home then shows the fix).
+ */
+@Composable
+private fun AskForAlerts(vm: BitsportsViewModel) {
+    if (Build.VERSION.SDK_INT < 33) return
+    val ctx = LocalContext.current
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { AlertScheduler.refresh(ctx) }
+    val following = vm.followedAbbrevs().isNotEmpty()
+    var asked by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(following) {
+        if (following && !asked && !AlertNotifier.canPost(ctx)) {
+            asked = true
+            ask.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 }
 

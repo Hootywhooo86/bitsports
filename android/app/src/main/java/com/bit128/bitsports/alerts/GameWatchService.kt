@@ -71,6 +71,7 @@ class GameWatchService : Service() {
                 if (Build.VERSION.SDK_INT >= 29) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0,
             )
         }
+        watching += gameId
         jobs[gameId] = scope.launch { if (replay) replayLoop(gameId) else liveLoop(gameId) }
     }
 
@@ -163,6 +164,7 @@ class GameWatchService : Service() {
     private fun stopGame(gameId: Long, skipTonight: Boolean) {
         if (skipTonight && gameId > 0) WatchStore(this).skipTonight(gameId)
         jobs.remove(gameId)?.cancel()
+        watching -= gameId
         if (skipTonight) NotificationManagerCompat.from(this).cancel(notificationId(gameId))
         if (jobs.isEmpty()) {
             ServiceCompat.stopForeground(this, if (skipTonight) ServiceCompat.STOP_FOREGROUND_REMOVE else ServiceCompat.STOP_FOREGROUND_DETACH)
@@ -172,6 +174,7 @@ class GameWatchService : Service() {
     }
 
     override fun onDestroy() {
+        watching.removeAll(jobs.keys)
         scope.cancel()
         super.onDestroy()
     }
@@ -179,6 +182,9 @@ class GameWatchService : Service() {
     companion object {
         private const val POLL_MS = 15_000L
         const val EXTRA_GAME = "gameId"
+        private val watching: MutableSet<Long> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+        fun isWatching(gameId: Long) = gameId in watching
         private const val ACTION_STOP = "com.bit128.bitsports.STOP_WATCH"
         private const val ACTION_REPLAY = "com.bit128.bitsports.REPLAY"
 

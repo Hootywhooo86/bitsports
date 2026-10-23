@@ -166,6 +166,8 @@ class BitsportsViewModel(
      * there just piles up failures; coming back refreshes at once instead.
      */
     fun onForeground() {
+        // Opening the app mid-game starts the watcher if the background start was blocked.
+        AlertScheduler.refresh(appContext)
         if (pollJobs.any { it.isActive }) return
         pollJobs = listOf(
             viewModelScope.launch { pollGames() },

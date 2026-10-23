@@ -7,8 +7,12 @@
     <!-- Watching a followed game while the app is closed (the mini scoreboard). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <!-- The 30-minute warning on time, and re-setting it after a restart. -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Exact alarms start the live watcher 15 minutes before puck drop; they're the only way
+         Android 12+ lets an app start a foreground service from the background. Android 14 turns
+         SCHEDULE_EXACT_ALARM off for new installs, so 13+ uses USE_EXACT_ALARM, which is granted at
+         install. (USE_EXACT_ALARM is restricted on Google Play; bitsports ships as an APK.) -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Family AI: see and bind bitcall on Android 11+. -->

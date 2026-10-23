@@ -1,12 +1,13 @@
-## bitsports 0.6.0 — hockey, all 128 pixels
+## bitsports 0.6.1 — game alerts that actually arrive
 
-- **Widgets are live now.** They refresh every minute while a game they show is on, and again at puck drop, even with the app closed (before, they could sit for up to 30 minutes unless the game watcher was running).
-- **New NHL scoreboard widget** (4×2, stretch it for more): every game tonight on one 128-LED arena board, live first. Score, period and clock, PP in yellow on a power play, EN on an empty net, finals dimming the loser, and a line under your teams' games.
-- Team score and heat-map widgets show power plays and empty nets too.
-- **The jumbotron is 128 LEDs wide.** Triple-size score with the leader lit brighter, shots under each team, the clock, and a bar that fills as the period runs. Power plays and empty nets flash up on the board. Between periods the **Zamboni** comes out and resurfaces it. Before puck drop: records and a countdown.
-- **The rink is 128 pixels too**: rounded boards, creases, nets, all nine faceoff dots and the five circles, for both the shot map and who's on the ice.
-- **Standings**: by division, wild card or the whole league, with points as pixel bars and the playoff line drawn in.
-- **League leaders**: points, goals, assists, goalie wins, save % and goals-against. Tap a board for the top ten.
-- **Your teams on Home**: where each sits in its division, points, streak and last-ten form.
+Goal, period and final alerts weren't reaching phones. Three causes, all fixed:
+
+- **bitsports never asked to send notifications.** Android 13+ keeps an app silent until you allow it, and the only Allow button was deep in Settings. Now it asks as soon as you follow an NHL team, and Home shows a "Game alerts are off" card with the one-tap fix whenever they can't reach you.
+- **The live watcher couldn't start on its own.** Android 14 switches off exact alarms for new installs, and without one Android won't let an app start watching a game in the background. bitsports now uses the alarm permission Android grants at install, so the watcher starts 15 minutes before puck drop with the app closed.
+- **No backup.** If Android still blocks the watcher, bitsports now checks the game once a minute from an alarm and sends the same alerts until the watcher can take over. The morning schedule check also retries every 30 minutes if the phone was offline, instead of waiting for you to open the app.
+
+Also new: **Settings → Goals + alerts → Send a test alert** posts a sample goal alert so you can check it reaches you before a real game.
+
+You don't need to open the app on game day. After installing this once, open it one time so it can ask for notifications; from then on alerts run by themselves.
 
 Install: download the APK below and open it. It installs over the previous version.
