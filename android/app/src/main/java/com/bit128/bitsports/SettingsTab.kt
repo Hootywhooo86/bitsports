@@ -118,9 +118,7 @@ fun SettingsTab(vm: BitsportsViewModel) {
         CardBox {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 Option("Goal moment", "What fills the screen when your team scores with the app open. Goal alerts play the animated LED board.") {
-                    Segmented(GOAL_STYLES.map { it.first }, GOAL_STYLES.indexOfFirst { it.second == ui.goalStyle }.coerceAtLeast(0)) {
-                        vm.updateUi(ui.copy(goalStyle = GOAL_STYLES[it].second))
-                    }
+                    GoalStylePicker(ui.goalStyle, vm.followedAbbrevs().firstOrNull() ?: "EDM") { vm.updateUi(ui.copy(goalStyle = it)) }
                     Spacer(Modifier.height(4.dp))
                     ToggleRow("8-bit goal horn", ui.goalSound) { vm.updateUi(ui.copy(goalSound = it)) }
                     OutlinedButton(
@@ -313,6 +311,41 @@ private fun FreeformAdd(vm: BitsportsViewModel) {
                 colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Color.Black),
                 modifier = Modifier.height(56.dp).weight(1f),
             ) { Heading("ADD TEAM", color = Color.Black) }
+        }
+    }
+}
+
+/** The four goal moments as live LED previews, two by two; tap one to pick it. */
+@Composable
+private fun GoalStylePicker(selected: String, team: String, onPick: (String) -> Unit) {
+    val accent = Color(LocalUi.current.accent)
+    // Four boards at once, so a slower step than the real moment keeps the settings page smooth.
+    val frame = com.bit128.bitsports.ui.goalFrame(loop = true, stepMs = 180)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        GOAL_STYLES.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { (label, key) ->
+                    val on = key == selected
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (on) Card3 else Card2)
+                            .border(if (on) 2.dp else 1.dp, if (on) accent else Line, RoundedCornerShape(10.dp))
+                            .clickable(onClickLabel = label) { onPick(key) }
+                            .padding(8.dp),
+                    ) {
+                        val grid = remember(key, team, frame) { com.bit128.bitsports.ui.GoalMoments.build(key, team, null, null, frame) }
+                        com.bit128.bitsports.ui.LedBoard(grid)
+                        Spacer(Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Label(label.uppercase(), color = if (on) TextInk else Muted)
+                            Spacer(Modifier.weight(1f))
+                            if (on) Label("✓", color = accent)
+                        }
+                    }
+                }
+            }
         }
     }
 }

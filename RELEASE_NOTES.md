@@ -1,4 +1,13 @@
-## bitsports 0.7.0 — animated LED alerts and a new heat map
+## bitsports 0.7.1 — goal moments in LED letters
+
+- **Settings → Goals + alerts → Goal moment** now shows all four styles as live animated previews, two by two. Tap one to pick it.
+- **Every goal moment is drawn in the same 128-pixel LED letters as the rest of the app**, team and scorer included:
+  - **Lamp**: the red goal light flashes and sweeps its beams over GOAL!
+  - **Burst**: rings in your team's two colours burst out behind GOAL!
+  - **Puck**: a puck slides into the net, the net shakes, GOAL!
+  - **Text only**: just the LED letters, blinking white and team colour.
+
+## From 0.7.0 — animated LED alerts and a new heat map
 
 **Animated 128-pixel notifications.** Game alerts now play on an LED board right in the notification shade: a strip that flips through frames when collapsed or popping up, and the full 128-LED board when you expand it.
 

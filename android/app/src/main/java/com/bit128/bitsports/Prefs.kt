@@ -31,7 +31,7 @@ fun UiPrefs.alertPrefs() = AlertPrefs(
     periods = alertPeriods, recap = alertRecap, final = alertFinal,
 )
 
-val GOAL_STYLES: List<Pair<String, String>> = listOf("Lamp" to "lamp", "Burst" to "burst", "Puck" to "puck", "Text" to "text")
+val GOAL_STYLES: List<Pair<String, String>> = listOf("Lamp" to "lamp", "Burst" to "burst", "Puck" to "puck", "Text only" to "text")
 
 // Light accents only, so black text on a filled button always reads. No red (that's LIVE).
 val ACCENTS: List<Pair<String, Long>> = listOf(
