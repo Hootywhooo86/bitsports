@@ -28,8 +28,8 @@ import com.bit128.bitsports.widget.LedBitmaps
 /** Posts every bitsports game alert. Channel sounds can't change after creation, so the horn has its own channel. */
 object AlertNotifier {
     const val CH_LIVE = "live"
-    private const val CH_GOALS_HORN = "goals_horn"
-    private const val CH_GOALS_QUIET = "goals_quiet"
+    const val CH_GOALS_HORN = "goals_horn"
+    const val CH_GOALS_QUIET = "goals_quiet"
     private const val CH_UPDATES = "updates"
     private const val CH_PREGAME = "pregame"
     const val EXTRA_GAME = "openGame"
@@ -101,11 +101,46 @@ object AlertNotifier {
             .setCustomBigContentView(flipper(context, R.layout.notification_led, scene.frames))
 
     private fun post(context: Context, id: Int, n: Notification) {
-        if (!canPost(context)) return
-        try { NotificationManagerCompat.from(context).notify(id, n) } catch (_: SecurityException) { }
+        if (!canPost(context)) {
+            AlertLog(context).failed("Blocked: notifications are off for bitsports", null)
+            return
+        }
+        try {
+            NotificationManagerCompat.from(context).notify(id, n)
+            n.extras.getCharSequence(Notification.EXTRA_TITLE)?.let { AlertLog(context).sent(it.toString()) }
+        } catch (e: SecurityException) {
+            AlertLog(context).failed("Blocked by Android", e)
+        }
     }
 
+    /**
+     * Posts one alert. If the animated LED version can't be built or posted, the same alert goes
+     * out as plain text: an alert that arrives plain beats a fancy one that never arrives.
+     */
     fun post(context: Context, alert: Alert, game: Game, prefs: UiPrefs, goals: List<GoalEvent>) {
+        try {
+            postRich(context, alert, game, prefs, goals)
+        } catch (e: Exception) {
+            AlertLog(context).failed("LED alert failed, sent plain", e)
+            postPlain(context, alert, game, prefs)
+        }
+    }
+
+    private fun postPlain(context: Context, alert: Alert, game: Game, prefs: UiPrefs) {
+        val (id, channel, title, text) = when (alert) {
+            is Alert.Goal -> listOf(("g" + alert.goal.gameId + alert.goal.eventId).hashCode(), if (prefs.goalSound) CH_GOALS_HORN else CH_GOALS_QUIET,
+                AlertCopy.goalTitle(alert.goal, game), AlertCopy.goalText(alert.goal))
+            is Alert.Replay -> listOf(("r" + alert.goal.gameId + alert.goal.eventId).hashCode(), CH_UPDATES, AlertCopy.replayTitle(alert.goal), "The replay is up.")
+            is Alert.PeriodEnd -> listOf(("p" + game.id + alert.stats.period).hashCode(), CH_UPDATES, "End of ${alert.label}", AlertCopy.periodText(alert.stats))
+            is Alert.Final -> listOf(("f" + game.id).hashCode(), CH_UPDATES, AlertCopy.finalTitle(alert.game, alert.shootout), AlertCopy.finalText(alert.threeStars))
+            is Alert.Pregame -> listOf(("g" + game.id).hashCode(), CH_PREGAME, AlertCopy.pregameTitle(alert.game), AlertCopy.pregameText(alert.game))
+        }
+        post(context, id as Int, base(context, channel as String, game.id)
+            .setContentTitle(title as String).setContentText(text as String)
+            .setPriority(NotificationCompat.PRIORITY_HIGH).build())
+    }
+
+    private fun postRich(context: Context, alert: Alert, game: Game, prefs: UiPrefs, goals: List<GoalEvent>) {
         when (alert) {
             is Alert.Goal -> goal(context, alert.goal, game, prefs)
             is Alert.Replay -> post(context, ("r" + alert.goal.gameId + alert.goal.eventId).hashCode(),

@@ -86,8 +86,10 @@ class GameWatchService : Service() {
                 backoffMs = POLL_MS
                 if (handle(d, store)) break
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                AlertLog(this).failed("Couldn't check the game", e)
                 // Keep the last good scoreboard, say how old it is, and try again a bit later.
-                last?.let { updateScoreboard(it, AlertPlanner.staleLabel(it.fetchedAt, Instant.now())) }
+                last?.let { runCatching { updateScoreboard(it, AlertPlanner.staleLabel(it.fetchedAt, Instant.now())) } }
                 backoffMs = (backoffMs * 2).coerceAtMost(60_000L)
             }
             delay(backoffMs)
@@ -115,6 +117,7 @@ class GameWatchService : Service() {
     /** One poll's worth of work. Returns true when watching should stop. */
     private suspend fun handle(d: GameDetail, store: WatchStore): Boolean {
         val prefs = PrefsStore(this).load()
+        AlertLog(this).checked("${d.game.away.abbrev} ${d.game.away.score ?: 0}-${d.game.home.score ?: 0} ${d.game.home.abbrev} (watcher)")
         val (alerts, next) = AlertPlanner.step(store.state(d.game.id), d, prefs.alertPrefs())
         store.save(next)
         val goals = GameAnalysis.goals(d)
@@ -129,8 +132,9 @@ class GameWatchService : Service() {
                 writeRecap(d, Alert.PeriodEnd(GameAnalysis.periodStats(d, p), AlertPlanner.periodLabel(p, GameAnalysis.periodStats(d, p).periodType)), store)
             }
         }
-        updateScoreboard(d, null)
-        com.bit128.bitsports.widget.Widgets.push(this, d)
+        // The scoreboard and widgets are extras: if either fails, alerts must keep coming.
+        try { updateScoreboard(d, null) } catch (e: Exception) { AlertLog(this).failed("Mini scoreboard failed", e) }
+        try { com.bit128.bitsports.widget.Widgets.push(this, d) } catch (e: Exception) { AlertLog(this).failed("Widget update failed", e) }
         return AlertPlanner.shouldStopWatching(d.game, Instant.now())
     }
 
@@ -185,6 +189,7 @@ class GameWatchService : Service() {
         private val watching: MutableSet<Long> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
         fun isWatching(gameId: Long) = gameId in watching
+        fun watchingAny() = watching.isNotEmpty()
         private const val ACTION_STOP = "com.bit128.bitsports.STOP_WATCH"
         private const val ACTION_REPLAY = "com.bit128.bitsports.REPLAY"
 

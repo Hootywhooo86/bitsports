@@ -138,9 +138,16 @@ private fun AlertsOffBanner(vm: BitsportsViewModel) {
     Spacer(Modifier.height(16.dp))
     CardBox {
         Column(Modifier.padding(16.dp)) {
-            Label("GAME ALERTS ARE OFF", color = Warn)
+            Label("GAME ALERTS ARE BLOCKED", color = Warn)
             Spacer(Modifier.height(8.dp))
-            AlertPermissionLine()
+            Text(problem!!, color = TextInk, fontSize = 14.sp)
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = { vm.tab = Tab.SETTINGS },
+                shape = RoundedCornerShape(11.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(LocalUi.current.accent), contentColor = Color.Black),
+                modifier = Modifier.fillMaxWidth().height(44.dp),
+            ) { Text("Fix it in Alert check", fontWeight = FontWeight.SemiBold) }
         }
     }
 }

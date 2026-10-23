@@ -1,12 +1,5 @@
 package com.bit128.bitsports
 
-import android.Manifest
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,13 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import com.bit128.bitsports.alerts.AlertNotifier
 import com.bit128.bitsports.alerts.AlertScheduler
 import com.bit128.bitsports.nhl.NhlTeams
@@ -115,6 +105,8 @@ fun SettingsTab(vm: BitsportsViewModel) {
 
         Spacer(Modifier.height(32.dp))
         SectionHead("GOALS + ALERTS", "NHL teams you follow")
+        AlertCheck(vm)
+        Spacer(Modifier.height(10.dp))
         CardBox {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 Option("Goal moment", "What fills the screen when your team scores with the app open. Goal alerts play the animated LED board.") {
@@ -128,7 +120,6 @@ fun SettingsTab(vm: BitsportsViewModel) {
                     ) { Text("Preview", color = TextInk, fontWeight = FontWeight.SemiBold) }
                 }
                 Option("Game alerts", "For your NHL teams, even with the app closed.", divider = false) {
-                    AlertPermissionLine()
                     ToggleRow("30 minutes before puck drop", ui.alertPregame) { set(ui.copy(alertPregame = it)) }
                     ToggleRow("Goals", ui.alertGoals) { set(ui.copy(alertGoals = it)) }
                     ToggleRow("Goal replays", ui.alertReplays) { set(ui.copy(alertReplays = it)) }
@@ -369,42 +360,6 @@ private fun TestAlertButton(vm: BitsportsViewModel) {
         Spacer(Modifier.height(6.dp))
         Text(it, color = Muted, fontSize = 12.sp)
     }
-}
-
-/** Says, in one line, why alerts can't work yet, with the button that fixes it. Re-checks on return. */
-@Composable
-internal fun AlertPermissionLine() {
-    val ctx = LocalContext.current
-    var problem by remember { mutableStateOf(AlertScheduler.problem(ctx)) }
-    val recheck = { problem = AlertScheduler.problem(ctx); AlertScheduler.refresh(ctx) }
-    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { recheck() }
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    DisposableEffect(lifecycle) {
-        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) recheck() }
-        lifecycle.addObserver(obs)
-        onDispose { lifecycle.removeObserver(obs) }
-    }
-    val p = problem ?: return
-    Text(p, color = Warn, fontSize = 13.sp)
-    Spacer(Modifier.height(8.dp))
-    Button(
-        onClick = {
-            when {
-                !AlertNotifier.canPost(ctx) && Build.VERSION.SDK_INT >= 33 ->
-                    askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-                !AlertNotifier.canPost(ctx) -> ctx.startActivity(
-                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)
-                )
-                Build.VERSION.SDK_INT >= 31 -> ctx.startActivity(
-                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + ctx.packageName))
-                )
-            }
-        },
-        shape = RoundedCornerShape(11.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color(LocalUi.current.accent), contentColor = Color.Black),
-        modifier = Modifier.fillMaxWidth().height(44.dp),
-    ) { Text("Allow", fontWeight = FontWeight.SemiBold) }
-    Spacer(Modifier.height(8.dp))
 }
 
 @Composable

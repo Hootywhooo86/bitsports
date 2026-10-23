@@ -47,19 +47,29 @@ object AlertScheduler {
             try {
                 scheduleDaily(app)
                 val followed = followedAbbrevs(app)
-                if (followed.isEmpty()) return@launch
+                if (followed.isEmpty()) {
+                    AlertLog(app).scheduled("No NHL team followed")
+                    return@launch
+                }
                 val now = Instant.now()
-                DirectNhlSource().scoreboard()
+                val mine = DirectNhlSource().scoreboard()
                     .filter { (it.away.abbrev in followed || it.home.abbrev in followed) && !it.state.isOver && it.scheduleOk }
-                    .forEach { g ->
-                        val pregameAt = g.startUtc.minus(Duration.ofMinutes(30))
-                        val watchAt = g.startUtc.minus(Duration.ofMinutes(15))
-                        if (pregameAt.isAfter(now)) alarm(app, ACTION_PREGAME, g.id, pregameAt)
-                        else AlarmReceiver.pregame(app, g)
-                        if (watchAt.isAfter(now)) alarm(app, ACTION_WATCH, g.id, watchAt)
-                        else if (!WatchStore(app).skippedTonight(g.id) && !GameWatchService.start(app, g.id)) pulseSoon(app, g.id)
-                    }
-            } catch (_: Exception) {
+                if (mine.isEmpty()) AlertLog(app).scheduled("No game left today for ${followed.joinToString(", ")}")
+                mine.forEach { g ->
+                    val pregameAt = g.startUtc.minus(Duration.ofMinutes(30))
+                    val watchAt = g.startUtc.minus(Duration.ofMinutes(15))
+                    AlertLog(app).scheduled(
+                        "${g.away.abbrev} @ ${g.home.abbrev}: " +
+                            if (watchAt.isAfter(now)) "watching starts ${java.time.format.DateTimeFormatter.ofPattern("h:mm a").format(watchAt.atZone(ZoneId.systemDefault()))}"
+                            else "on now",
+                    )
+                    if (pregameAt.isAfter(now)) alarm(app, ACTION_PREGAME, g.id, pregameAt)
+                    else AlarmReceiver.pregame(app, g)
+                    if (watchAt.isAfter(now)) alarm(app, ACTION_WATCH, g.id, watchAt)
+                    else if (!WatchStore(app).skippedTonight(g.id) && !GameWatchService.start(app, g.id)) pulseSoon(app, g.id)
+                }
+            } catch (e: Exception) {
+                AlertLog(app).failed("Couldn't load today's schedule", e)
                 // Offline: try again in 30 minutes rather than waiting for tomorrow or an app open.
                 // (This replaces the 09:00 alarm; that run puts it back.)
                 alarm(app, ACTION_DAILY, 0, Instant.now().plus(Duration.ofMinutes(30)))
@@ -99,6 +109,7 @@ object AlertScheduler {
             return
         }
         val prefs = PrefsStore(context).load()
+        AlertLog(context).checked("${d.game.away.abbrev} ${d.game.away.score ?: 0}-${d.game.home.score ?: 0} ${d.game.home.abbrev} (backup check)")
         val (alerts, next) = AlertPlanner.step(store.state(d.game.id), d, prefs.alertPrefs())
         store.save(next)
         AlertNotifier.ensureChannels(context)
@@ -125,7 +136,18 @@ object AlertScheduler {
     fun problem(context: Context): String? = when {
         !AlertNotifier.canPost(context) -> "Allow notifications so bitsports can tell you about goals."
         !canExact(context) -> "Allow alarms & reminders so live game alerts can start on time."
+        Build.VERSION.SDK_INT >= 28 && context.getSystemService(android.app.ActivityManager::class.java).isBackgroundRestricted ->
+            "bitsports' battery is set to Restricted, so Android stops it watching games."
+        !goalsChannelOn(context) -> "Goal alerts are switched off in Android's notification settings."
         else -> null
+    }
+
+    private fun goalsChannelOn(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < 26) return true
+        val sound = PrefsStore(context).load().goalSound
+        val id = if (sound) AlertNotifier.CH_GOALS_HORN else AlertNotifier.CH_GOALS_QUIET
+        val ch = context.getSystemService(android.app.NotificationManager::class.java).getNotificationChannel(id) ?: return true
+        return ch.importance != android.app.NotificationManager.IMPORTANCE_NONE
     }
 
     fun needsExactAlarmSetting(context: Context) = AlertNotifier.canPost(context) && !canExact(context)
