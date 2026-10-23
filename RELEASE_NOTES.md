@@ -1,4 +1,9 @@
-## bitsports 0.7.3 — Alert check
+## bitsports 0.7.4 — your team's goals, even if you allowed notifications late
+
+- **Fixed: goals were thrown away while notifications were still off.** Opening bitsports during your team's game starts watching straight away, and Android asks "Allow notifications?" at the same moment. The first check ran before you tapped Allow, saw the goals so far, couldn't post them, and still counted them as announced, so they never came. Now nothing counts as announced until Android actually lets it through; the moment you allow notifications, the next check (within 15 seconds) sends them.
+- **Catch-up alert.** When bitsports starts watching a game that's already under way, you get one alert with the score, how many goals so far and the latest scorer (on the animated LED board) instead of a burst of old goals. Every goal after that gets its own alert. If the game is already over, you just get the final.
+
+## From 0.7.3 — Alert check
 
 Goal alerts still weren't reaching some phones. The alert logic itself checks out against real games (tonight's CAR @ EDM produced all ten goal alerts, the period ends and the final), so what's left is something on the phone stopping them. This build shows exactly what.
 

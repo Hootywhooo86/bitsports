@@ -78,7 +78,9 @@ class AlertPlannerTest {
 
     @Test fun periodEndOnce() {
         val endIdx = full.plays.indexOfFirst { it.type == "period-end" }
-        val (a1, s1) = AlertPlanner.step(fresh, upTo(endIdx), allOn)
+        // Watching from the start: one poll just before the buzzer, then the buzzer.
+        val (_, s0) = AlertPlanner.step(AlertPlanner.step(fresh, upTo(0), allOn).second, upTo(endIdx - 1), allOn)
+        val (a1, s1) = AlertPlanner.step(s0, upTo(endIdx), allOn)
         val pe = a1.filterIsInstance<Alert.PeriodEnd>().single()
         assertEquals("1st", pe.label)
         assertEquals(1, pe.stats.period)
@@ -95,8 +97,29 @@ class AlertPlannerTest {
     @Test fun finalOnce() {
         val (a1, s1) = AlertPlanner.step(fresh, full, allOn)
         assertEquals(1, a1.count { it is Alert.Final })
-        assertEquals(7, a1.count { it is Alert.Goal })
+        // Seen for the first time already over: just the result, not seven old goals.
+        assertEquals(0, a1.count { it is Alert.Goal || it is Alert.CatchUp || it is Alert.PeriodEnd })
         assertTrue(AlertPlanner.step(s1, full, allOn).first.isEmpty())
+    }
+
+    @Test fun twoQuickGoalsWhileWatchingAreTwoAlerts() {
+        val goalIdx = full.plays.withIndex().filter { it.value.type == "goal" && it.value.periodType != "SO" }.map { it.index }
+        val (_, s0) = AlertPlanner.step(fresh, upTo(0), allOn) // watching from puck drop
+        val (a, _) = AlertPlanner.step(s0, upTo(goalIdx[1]), allOn) // two goals land between checks
+        assertEquals(2, a.count { it is Alert.Goal })
+        assertTrue(a.none { it is Alert.CatchUp })
+    }
+
+    @Test fun midGameStartCatchesUpOnceThenAlertsEachNewGoal() {
+        val goalIdx = full.plays.withIndex().filter { it.value.type == "goal" && it.value.periodType != "SO" }.map { it.index }
+        val live = { i: Int -> upTo(i).let { it.copy(game = it.game.copy(state = GameState.LIVE)) } }
+        val (a1, s1) = AlertPlanner.step(fresh, live(goalIdx[2]), allOn)
+        assertEquals(1, a1.count { it is Alert.CatchUp })
+        assertEquals(3, (a1.single { it is Alert.CatchUp } as Alert.CatchUp).goals.size)
+        assertTrue(a1.none { it is Alert.Goal || it is Alert.PeriodEnd })
+        val (a2, _) = AlertPlanner.step(s1, live(goalIdx[3]), allOn)
+        assertEquals(1, a2.count { it is Alert.Goal })
+        assertTrue(a2.none { it is Alert.CatchUp })
     }
 
     @Test fun prefsOffSuppressButRecord() {

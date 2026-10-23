@@ -134,6 +134,7 @@ object AlertNotifier {
             is Alert.PeriodEnd -> listOf(("p" + game.id + alert.stats.period).hashCode(), CH_UPDATES, "End of ${alert.label}", AlertCopy.periodText(alert.stats))
             is Alert.Final -> listOf(("f" + game.id).hashCode(), CH_UPDATES, AlertCopy.finalTitle(alert.game, alert.shootout), AlertCopy.finalText(alert.threeStars))
             is Alert.Pregame -> listOf(("g" + game.id).hashCode(), CH_PREGAME, AlertCopy.pregameTitle(alert.game), AlertCopy.pregameText(alert.game))
+            is Alert.CatchUp -> listOf(("c" + game.id).hashCode(), CH_GOALS_QUIET, AlertCopy.catchUpTitle(alert.game), AlertCopy.catchUpText(alert.goals))
         }
         post(context, id as Int, base(context, channel as String, game.id)
             .setContentTitle(title as String).setContentText(text as String)
@@ -143,6 +144,13 @@ object AlertNotifier {
     private fun postRich(context: Context, alert: Alert, game: Game, prefs: UiPrefs, goals: List<GoalEvent>) {
         when (alert) {
             is Alert.Goal -> goal(context, alert.goal, game, prefs)
+            is Alert.CatchUp -> post(context, ("c" + game.id).hashCode(),
+                base(context, CH_GOALS_QUIET, game.id)
+                    .setContentTitle(AlertCopy.catchUpTitle(alert.game))
+                    .setContentText(AlertCopy.catchUpText(alert.goals))
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .animated(context, LedScenes.live(alert.game, alert.goals.lastOrNull(), prefs.accent.toInt()))
+                    .build())
             is Alert.Replay -> post(context, ("r" + alert.goal.gameId + alert.goal.eventId).hashCode(),
                 base(context, CH_UPDATES, game.id)
                     .setContentTitle(AlertCopy.replayTitle(alert.goal))

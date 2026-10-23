@@ -109,6 +109,11 @@ object AlertScheduler {
             return
         }
         val prefs = PrefsStore(context).load()
+        if (!AlertNotifier.canPost(context)) {
+            AlertLog(context).failed("Notifications are off, holding alerts until they're allowed", null)
+            if (!AlertPlanner.shouldStopWatching(d.game, Instant.now())) pulseSoon(context, gameId)
+            return
+        }
         AlertLog(context).checked("${d.game.away.abbrev} ${d.game.away.score ?: 0}-${d.game.home.score ?: 0} ${d.game.home.abbrev} (backup check)")
         val (alerts, next) = AlertPlanner.step(store.state(d.game.id), d, prefs.alertPrefs())
         store.save(next)

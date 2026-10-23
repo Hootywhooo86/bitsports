@@ -117,6 +117,13 @@ class GameWatchService : Service() {
     /** One poll's worth of work. Returns true when watching should stop. */
     private suspend fun handle(d: GameDetail, store: WatchStore): Boolean {
         val prefs = PrefsStore(this).load()
+        if (!AlertNotifier.canPost(this)) {
+            // Nothing counts as announced until Android lets it through: the moment notifications
+            // are allowed, the next check catches up.
+            AlertLog(this).failed("Notifications are off, holding alerts until they're allowed", null)
+            com.bit128.bitsports.widget.Widgets.push(this, d)
+            return AlertPlanner.shouldStopWatching(d.game, Instant.now())
+        }
         AlertLog(this).checked("${d.game.away.abbrev} ${d.game.away.score ?: 0}-${d.game.home.score ?: 0} ${d.game.home.abbrev} (watcher)")
         val (alerts, next) = AlertPlanner.step(store.state(d.game.id), d, prefs.alertPrefs())
         store.save(next)

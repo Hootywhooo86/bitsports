@@ -16,6 +16,8 @@ sealed interface Alert {
     data class Replay(val goal: GoalEvent) : Alert
     data class PeriodEnd(val stats: PeriodStats, val label: String) : Alert
     data class Final(val game: Game, val shootout: Boolean, val threeStars: List<String>) : Alert
+    /** Watching started mid-game: one "here's where it stands" instead of a burst of old goals. */
+    data class CatchUp(val game: Game, val goals: List<GoalEvent>) : Alert
 }
 
 data class AlertPrefs(
@@ -35,6 +37,8 @@ data class WatchState(
     val endedPeriods: Set<Int>,
     val finalSent: Boolean,
     val pregameSent: Boolean,
+    /** The game has been checked at least once; until then, goals already on the board are a catch-up. */
+    val seen: Boolean = false,
 ) {
     fun toJson(): String = JSONObject()
         .put("gameId", gameId)
@@ -43,6 +47,7 @@ data class WatchState(
         .put("endedPeriods", JSONArray(endedPeriods.sorted()))
         .put("finalSent", finalSent)
         .put("pregameSent", pregameSent)
+        .put("seen", seen)
         .toString()
 
     companion object {
@@ -58,6 +63,8 @@ data class WatchState(
                 endedPeriods = ints("endedPeriods"),
                 finalSent = o.optBoolean("finalSent"),
                 pregameSent = o.optBoolean("pregameSent"),
+                // States saved before this field existed had been watched if anything was recorded.
+                seen = o.optBoolean("seen", ints("alertedGoals").isNotEmpty() || ints("endedPeriods").isNotEmpty()),
             )
         }
     }
@@ -76,10 +83,14 @@ object AlertPlanner {
         val goals = GameAnalysis.goals(d)
         val alerted = prev.alertedGoals.toMutableSet()
         val replayed = prev.replayed.toMutableSet()
+        // First look at a game already under way with goals on the board: catch up in one alert.
+        val firstSight = !prev.seen
+        val catchUp = firstSight && goals.size >= 2
+        if (catchUp && prefs.goals && !d.game.state.isOver) alerts += Alert.CatchUp(d.game, goals)
         for (g in goals) {
             if (g.eventId !in alerted) {
                 alerted += g.eventId
-                if (prefs.goals) alerts += Alert.Goal(g)
+                if (prefs.goals && !catchUp) alerts += Alert.Goal(g)
                 // A clip that's already there rides on the goal alert; no second alert for it.
                 if (g.clipUrl != null) replayed += g.eventId
             } else if (g.clipUrl != null && g.eventId !in replayed) {
@@ -94,7 +105,7 @@ object AlertPlanner {
             .distinct()
             .forEach { (period, type) ->
                 ended += period
-                if (prefs.periods) alerts += Alert.PeriodEnd(GameAnalysis.periodStats(d, period), periodLabel(period, type))
+                if (prefs.periods && !catchUp) alerts += Alert.PeriodEnd(GameAnalysis.periodStats(d, period), periodLabel(period, type))
             }
 
         var finalSent = prev.finalSent
@@ -104,7 +115,7 @@ object AlertPlanner {
             if (prefs.final) alerts += Alert.Final(d.game, shootout, d.threeStars)
         }
 
-        return alerts to prev.copy(alertedGoals = alerted, replayed = replayed, endedPeriods = ended, finalSent = finalSent)
+        return alerts to prev.copy(alertedGoals = alerted, replayed = replayed, endedPeriods = ended, finalSent = finalSent, seen = true)
     }
 
     fun pregame(prev: WatchState, game: Game, now: Instant, prefs: AlertPrefs): Pair<Alert.Pregame?, WatchState> {

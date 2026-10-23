@@ -37,6 +37,15 @@ object AlertCopy {
         g.goalie?.let { appendLine("On $it") }
     }.trim()
 
+    fun catchUpTitle(game: Game) =
+        "${nick(game.away.abbrev)} ${game.away.score ?: 0}–${game.home.score ?: 0} ${nick(game.home.abbrev)} · you're caught up"
+
+    fun catchUpText(goals: List<GoalEvent>): String {
+        val last = goals.lastOrNull() ?: return "No goals yet."
+        return "${goals.size} goals so far. Latest: ${last.scorer}, " +
+            "${AlertPlanner.periodLabel(last.period, last.periodType)} ${last.timeInPeriod}. Every goal from here gets its own alert."
+    }
+
     fun replayTitle(g: GoalEvent) = "▶ Watch ${g.scorer}'s goal"
 
     private fun scoreLine(game: Game, away: Int, home: Int) =
