@@ -34,6 +34,8 @@ import com.bit128.bitsports.*
 import com.bit128.bitsports.alerts.AlertScheduler
 import com.bit128.bitsports.nhl.NhlTeams
 import com.bit128.bitsports.nhl.ShotMark
+import com.bit128.bitsports.ui.HeatMap
+import com.bit128.bitsports.ui.HockeyBoard
 
 /** Per-widget choices: which team, and for the rink widget which heat and what kind of board. */
 class WidgetSetupActivity : ComponentActivity() {
@@ -143,9 +145,12 @@ private fun BoardPreview(cfg: WidgetConfig, followed: List<String>) {
     val other = if (mine == "CGY") "EDM" else "CGY"
     val bmp = remember(cfg, mine) {
         val sample = sampleShots(mine, other)
-        RinkArt.render(
-            RinkHeat.grid(sample, awayAbbrev = mine, onlyTeam = if (cfg.heat == "mine") mine else null),
-            NhlTeams.byAbbrev(mine), NhlTeams.byAbbrev(other), cfg.board == "solid",
+        LedBitmaps.render(
+            HeatMap.draw(
+                HeatMap.heat(sample, awayAbbrev = mine, onlyTeam = if (cfg.heat == "mine") mine else null),
+                HockeyBoard.colors(mine), HockeyBoard.colors(other),
+            ),
+            cell = 5, dots = cfg.board != "solid",
         )
     }
     Column {

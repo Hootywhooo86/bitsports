@@ -23,6 +23,8 @@ import com.bit128.bitsports.nhl.GameAnalysis
 import com.bit128.bitsports.nhl.GameDetail
 import com.bit128.bitsports.nhl.NhlTeams
 import com.bit128.bitsports.nhl.Strengths
+import com.bit128.bitsports.ui.HeatMap
+import com.bit128.bitsports.ui.HockeyBoard
 import com.bit128.bitsports.ui.ScoreFormat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -294,7 +296,7 @@ object Widgets {
         val h = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 180).coerceAtLeast(60) - 52
         val maxGames = ((h.toFloat() / w * ScoreboardLeds.COLS + 2) / ScoreboardLeds.ROW_H).toInt().coerceIn(1, 16)
         val grid = ScoreboardLeds.build(ordered, followed, accent, maxGames)
-        v.setImageViewBitmap(R.id.board, ScoreboardLeds.bitmap(grid))
+        v.setImageViewBitmap(R.id.board, LedBitmaps.render(grid))
         v.setTextViewText(R.id.more, if (ordered.size > maxGames) "+${ordered.size - maxGames} more · tap for all" else "")
         return v
     }
@@ -340,8 +342,9 @@ object Widgets {
         }
         val shots = d?.let { GameAnalysis.shots(it) }.orEmpty()
         val only = if (cfg.heat == "mine") team else null
-        val grid = RinkHeat.grid(shots, awayAbbrev ?: "", only)
-        v.setImageViewBitmap(R.id.board, RinkArt.render(grid, awayAbbrev?.let { NhlTeams.byAbbrev(it) }, homeAbbrev?.let { NhlTeams.byAbbrev(it) }, cfg.board == "solid"))
+        val heat = HeatMap.heat(shots, awayAbbrev ?: "", only)
+        val grid = HeatMap.draw(heat, HockeyBoard.colors(awayAbbrev ?: ""), HockeyBoard.colors(homeAbbrev ?: ""))
+        v.setImageViewBitmap(R.id.board, LedBitmaps.render(grid, cell = 5, dots = cfg.board != "solid"))
         return v
     }
 }

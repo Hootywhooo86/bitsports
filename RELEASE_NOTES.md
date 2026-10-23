@@ -1,13 +1,14 @@
-## bitsports 0.6.1 — game alerts that actually arrive
+## bitsports 0.7.0 — animated LED alerts and a new heat map
 
-Goal, period and final alerts weren't reaching phones. Three causes, all fixed:
+**Animated 128-pixel notifications.** Game alerts now play on an LED board right in the notification shade: a strip that flips through frames when collapsed or popping up, and the full 128-LED board when you expand it.
 
-- **bitsports never asked to send notifications.** Android 13+ keeps an app silent until you allow it, and the only Allow button was deep in Settings. Now it asks as soon as you follow an NHL team, and Home shows a "Game alerts are off" card with the one-tap fix whenever they can't reach you.
-- **The live watcher couldn't start on its own.** Android 14 switches off exact alarms for new installs, and without one Android won't let an app start watching a game in the background. bitsports now uses the alarm permission Android grants at install, so the watcher starts 15 minutes before puck drop with the app closed.
-- **No backup.** If Android still blocks the watcher, bitsports now checks the game once a minute from an alarm and sends the same alerts until the watcher can take over. The morning schedule check also retries every 30 minutes if the phone was offline, instead of waiting for you to open the app.
+- **Goal**: the goal lamp flashes red over a giant GOAL!, then the scorer with their goal count, power play / shorthanded and who assisted, then the new score.
+- **End of period**: the score, then shots, hits and goals as head-to-head pixel bars in each team's colours, then faceoffs and the power play.
+- **Final**: the final score and who won, then the three stars one at a time, gold stars and all.
+- **Live mini scoreboard**: the jumbotron itself, flipping to the last goal; between periods the Zamboni laps the board.
 
-Also new: **Settings → Goals + alerts → Send a test alert** posts a sample goal alert so you can check it reaches you before a real game.
+**New heat map, 128 pixels.** The score + heat map widget now draws a real rink (rounded boards, lines, circles, faceoff dots, creases and nets) and each team's shooting zones glow in its colour, five shades from faint to white-hot, with goals as white sparks. Choose round LEDs or solid pixels when you set up the widget. The same heat map is in the app: Game → Shot map → Heat (Shots still shows every shot as a dot).
 
-You don't need to open the app on game day. After installing this once, open it one time so it can ask for notifications; from then on alerts run by themselves.
+Still in this build: alerts arrive with the app closed (0.6.1). Open bitsports once after installing to allow notifications, then use Settings → Send a test alert to see the new animated goal alert.
 
 Install: download the APK below and open it. It installs over the previous version.

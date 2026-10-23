@@ -117,7 +117,7 @@ fun SettingsTab(vm: BitsportsViewModel) {
         SectionHead("GOALS + ALERTS", "NHL teams you follow")
         CardBox {
             Column(Modifier.padding(horizontal = 16.dp)) {
-                Option("Goal moment", "What fills the screen when your team scores. Also used for the goal notification art.") {
+                Option("Goal moment", "What fills the screen when your team scores with the app open. Goal alerts play the animated LED board.") {
                     Segmented(GOAL_STYLES.map { it.first }, GOAL_STYLES.indexOfFirst { it.second == ui.goalStyle }.coerceAtLeast(0)) {
                         vm.updateUi(ui.copy(goalStyle = GOAL_STYLES[it].second))
                     }

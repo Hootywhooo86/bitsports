@@ -1,8 +1,5 @@
 package com.bit128.bitsports.widget
 
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
 import com.bit128.bitsports.nhl.Game
 import com.bit128.bitsports.nhl.Strengths
 import com.bit128.bitsports.ui.HockeyBoard
@@ -77,23 +74,5 @@ object ScoreboardLeds {
         "OT" -> if (period > 4) "${period - 3}OT" else "OT"
         "SO" -> "SO"
         else -> "P$period"
-    }
-
-    /**
-     * LEDs as round-ish dots in a small RGB_565 bitmap: a widget update has to fit through a 1 MB
-     * binder call, so [cell] stays small and the launcher scales it up.
-     */
-    fun bitmap(grid: LedGrid, cell: Int = 5, unlit: Int = 0xFF1A1A1A.toInt(), ground: Int = 0xFF0D0D0D.toInt()): Bitmap {
-        val bmp = Bitmap.createBitmap(grid.cols * cell, grid.rows * cell, Bitmap.Config.RGB_565)
-        val c = Canvas(bmp)
-        c.drawColor(ground)
-        val p = Paint(Paint.ANTI_ALIAS_FLAG)
-        val dot = cell - 1f
-        for (y in 0 until grid.rows) for (x in 0 until grid.cols) {
-            val v = grid[x, y]
-            p.color = if (v != 0) v else unlit
-            c.drawRoundRect(x * cell.toFloat(), y * cell.toFloat(), x * cell + dot, y * cell + dot, 1f, 1f, p)
-        }
-        return bmp
     }
 }

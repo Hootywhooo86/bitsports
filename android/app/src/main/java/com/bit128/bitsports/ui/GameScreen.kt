@@ -399,6 +399,7 @@ private fun Linescore(g: Game, d: GameDetail) {
 private fun ShotMapSection(g: Game, d: GameDetail, away: com.bit128.bitsports.nhl.NhlTeam?, home: com.bit128.bitsports.nhl.NhlTeam?) {
     var who by remember(g.id) { mutableStateOf(0) }
     var period by remember(g.id) { mutableStateOf(0) }
+    var heat by rememberSaveable(g.id) { mutableStateOf(true) }
     val all = GameAnalysis.shots(d)
     val periods = all.map { it.period }.distinct().sorted()
     val shown = all
@@ -407,8 +408,17 @@ private fun ShotMapSection(g: Game, d: GameDetail, away: com.bit128.bitsports.nh
     SectionHead("SHOT MAP", "${shown.count { it.isGoal }} goals · ${shown.size} shots on goal")
     CardBox {
         Column(Modifier.padding(10.dp)) {
-            ShotMap(shown, away, home)
+            if (heat) {
+                val grid = remember(shown) {
+                    HeatMap.draw(HeatMap.heat(shown, g.away.abbrev), HockeyBoard.colors(g.away.abbrev), HockeyBoard.colors(g.home.abbrev))
+                }
+                PixelGrid(grid)
+            } else {
+                ShotMap(shown, away, home)
+            }
             Spacer(Modifier.height(10.dp))
+            Segmented(listOf("Heat", "Shots"), if (heat) 0 else 1) { heat = it == 0 }
+            Spacer(Modifier.height(6.dp))
             Segmented(listOf("Both", g.away.abbrev, g.home.abbrev), who) { who = it }
             if (periods.size > 1) {
                 Spacer(Modifier.height(6.dp))
@@ -417,7 +427,11 @@ private fun ShotMapSection(g: Game, d: GameDetail, away: com.bit128.bitsports.nh
                 }
             }
             Spacer(Modifier.height(6.dp))
-            Text("${g.away.abbrev} shoots right → · ← ${g.home.abbrev} shoots left · white = goal", color = Dim, fontSize = 11.sp)
+            Text(
+                if (heat) "← ${g.away.abbrev} attacks left · ${g.home.abbrev} attacks right → · brighter = more shots · white sparks = goals"
+                else "${g.away.abbrev} shoots right → · ← ${g.home.abbrev} shoots left · white = goal",
+                color = Dim, fontSize = 11.sp,
+            )
         }
     }
 }

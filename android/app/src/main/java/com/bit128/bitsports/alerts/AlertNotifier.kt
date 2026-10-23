@@ -22,6 +22,8 @@ import com.bit128.bitsports.UiPrefs
 import com.bit128.bitsports.nhl.Game
 import com.bit128.bitsports.nhl.GoalEvent
 import com.bit128.bitsports.nhl.NhlTeams
+import com.bit128.bitsports.ui.LedScenes
+import com.bit128.bitsports.widget.LedBitmaps
 
 /** Posts every bitsports game alert. Channel sounds can't change after creation, so the horn has its own channel. */
 object AlertNotifier {
@@ -77,6 +79,27 @@ object AlertNotifier {
         .setAutoCancel(true)
         .setContentIntent(openGameIntent(context, gameId))
 
+    /**
+     * An animated LED notification body: one RemoteViews ViewFlipper, one small bitmap per frame.
+     * Cell size 3 keeps a whole scene (board + strip frames) well under the 1 MB binder limit.
+     */
+    private fun flipper(context: Context, layout: Int, frames: List<com.bit128.bitsports.ui.LedGrid>): RemoteViews {
+        val v = RemoteViews(context.packageName, layout)
+        v.removeAllViews(R.id.frames)
+        frames.forEach { g ->
+            val f = RemoteViews(context.packageName, R.layout.notification_led_frame)
+            f.setImageViewBitmap(R.id.frame, LedBitmaps.render(g, cell = 3))
+            v.addView(R.id.frames, f)
+        }
+        return v
+    }
+
+    /** Collapsed + heads-up get the strip, expanded gets the board; title and text stay for the lock screen and screen readers. */
+    private fun NotificationCompat.Builder.animated(context: Context, scene: LedScenes.Scene): NotificationCompat.Builder =
+        setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(flipper(context, R.layout.notification_led_strip, scene.strips))
+            .setCustomBigContentView(flipper(context, R.layout.notification_led, scene.frames))
+
     private fun post(context: Context, id: Int, n: Notification) {
         if (!canPost(context)) return
         try { NotificationManagerCompat.from(context).notify(id, n) } catch (_: SecurityException) { }
@@ -91,16 +114,20 @@ object AlertNotifier {
                     .setContentText("The replay is up.")
                     .setContentIntent(clipIntent(context, alert.goal.clipUrl!!, alert.goal.eventId))
                     .build())
-            is Alert.PeriodEnd -> post(context, ("p" + game.id + alert.stats.period).hashCode(),
-                base(context, CH_UPDATES, game.id)
-                    .setContentTitle(AlertCopy.periodTitle(alert.stats, alert.label, game, goals))
-                    .setContentText(AlertCopy.periodText(alert.stats))
-                    .setStyle(NotificationCompat.BigTextStyle().bigText(AlertCopy.periodText(alert.stats)))
-                    .build())
+            is Alert.PeriodEnd -> {
+                val after = goals.lastOrNull { it.period <= alert.stats.period }
+                post(context, ("p" + game.id + alert.stats.period).hashCode(),
+                    base(context, CH_UPDATES, game.id)
+                        .setContentTitle(AlertCopy.periodTitle(alert.stats, alert.label, game, goals))
+                        .setContentText(AlertCopy.periodText(alert.stats))
+                        .animated(context, LedScenes.periodEnd(alert.stats, alert.label, game, after?.awayScore ?: 0, after?.homeScore ?: 0, prefs.accent.toInt()))
+                        .build())
+            }
             is Alert.Final -> post(context, ("f" + game.id).hashCode(),
                 base(context, CH_UPDATES, game.id)
                     .setContentTitle(AlertCopy.finalTitle(alert.game, alert.shootout))
                     .setContentText(AlertCopy.finalText(alert.threeStars))
+                    .animated(context, LedScenes.final(alert.game, alert.shootout, alert.threeStars, prefs.accent.toInt()))
                     .build())
             is Alert.Pregame -> post(context, ("g" + game.id).hashCode(),
                 base(context, CH_PREGAME, game.id)
@@ -111,21 +138,12 @@ object AlertNotifier {
     }
 
     private fun goal(context: Context, g: GoalEvent, game: Game, prefs: UiPrefs) {
-        val team = NhlTeams.byAbbrev(g.teamAbbrev)
-        val art = team?.let { GoalArt.render(context, prefs.goalStyle, it.colors) }
         val b = base(context, if (prefs.goalSound) CH_GOALS_HORN else CH_GOALS_QUIET, game.id)
             .setContentTitle(AlertCopy.goalTitle(g, game))
             .setContentText(AlertCopy.goalText(g))
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-        if (art != null) {
-            b.setLargeIcon(art).setStyle(
-                NotificationCompat.BigPictureStyle().bigPicture(art).bigLargeIcon(null as android.graphics.Bitmap?)
-                    .setSummaryText(AlertCopy.goalDetail(g).replace("\n", " · "))
-            )
-        } else {
-            b.setStyle(NotificationCompat.BigTextStyle().bigText(AlertCopy.goalDetail(g)))
-        }
+            .animated(context, LedScenes.goal(g, game, prefs.accent.toInt()))
         g.clipUrl?.let { b.addAction(0, "Watch the goal", clipIntent(context, it, g.eventId)) }
         post(context, ("g" + g.gameId + g.eventId).hashCode(), b.build())
     }
@@ -163,7 +181,7 @@ object AlertNotifier {
             .setContentText("Tap to follow it live.")
             .build())
 
-    fun scoreboard(context: Context, game: Game, stale: String?, stopIntent: PendingIntent): Notification {
+    fun scoreboard(context: Context, game: Game, stale: String?, stopIntent: PendingIntent, lastGoal: GoalEvent? = null): Notification {
         val v = RemoteViews(context.packageName, R.layout.notification_scoreboard)
         val away = NhlTeams.byAbbrev(game.away.abbrev)
         val home = NhlTeams.byAbbrev(game.home.abbrev)
@@ -189,11 +207,18 @@ object AlertNotifier {
             v.setTextViewText(R.id.stale, stale)
         } else v.setViewVisibility(R.id.stale, android.view.View.GONE)
 
+        // Expanded: the animated jumbotron, with how stale it is underneath when the feed lags.
+        val accent = com.bit128.bitsports.PrefsStore(context).load().accent.toInt()
+        val big = flipper(context, R.layout.notification_led, LedScenes.live(game, lastGoal, accent).frames)
+        if (stale != null) {
+            big.setViewVisibility(R.id.caption, android.view.View.VISIBLE)
+            big.setTextViewText(R.id.caption, stale)
+        }
         return NotificationCompat.Builder(context, CH_LIVE)
             .setSmallIcon(R.drawable.ic_stat_puck)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(v)
-            .setCustomBigContentView(v)
+            .setCustomBigContentView(big)
             .setContentTitle("${game.away.abbrev} ${game.away.score ?: 0}–${game.home.score ?: 0} ${game.home.abbrev}")
             .setOngoing(!game.state.isOver)
             .setOnlyAlertOnce(true)

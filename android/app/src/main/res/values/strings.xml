@@ -4,7 +4,7 @@
     <string name="widget_team_label">Team score</string>
     <string name="widget_team_desc">Your team\'s game: the score, the clock and the puck drop.</string>
     <string name="widget_rink_label">Score + heat map</string>
-    <string name="widget_rink_desc">The score over an LED rink that lights up where each team is shooting from.</string>
+    <string name="widget_rink_desc">The score over a 128-pixel rink: each team\'s shooting zones glow in its colours, goals spark white.</string>
     <string name="widget_scores_label">NHL scoreboard</string>
     <string name="widget_scores_desc">Every NHL game tonight on one LED board, live.</string>
 </resources>

@@ -155,7 +155,7 @@ class GameWatchService : Service() {
             Intent(this, GameWatchService::class.java).setAction(ACTION_STOP).putExtra(EXTRA_GAME, d.game.id),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val n = AlertNotifier.scoreboard(this, d.game, stale, stop)
+        val n = AlertNotifier.scoreboard(this, d.game, stale, stop, GameAnalysis.goals(d).lastOrNull())
         if (AlertNotifier.canPost(this)) {
             try { NotificationManagerCompat.from(this).notify(notificationId(d.game.id), n) } catch (_: SecurityException) { }
         }

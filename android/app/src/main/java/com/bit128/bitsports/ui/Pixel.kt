@@ -82,9 +82,24 @@ object PixelFont {
         '@' to arrayOf(".###.", "#...#", "#.###", "#.#.#", "#.###", "#....", ".###."),
         '\'' to arrayOf("..#..", "..#..", ".....", ".....", ".....", ".....", "....."),
         '&' to arrayOf(".##..", "#..#.", "#.#..", ".#...", "#.#.#", "#..#.", ".##.#"),
+        '*' to arrayOf("..#..", "..#..", "#####", ".###.", ".###.", "##.##", "#...#"),
+        '#' to arrayOf(".#.#.", ".#.#.", "#####", ".#.#.", "#####", ".#.#.", ".#.#."),
+        '(' to arrayOf("...#.", "..#..", ".#...", ".#...", ".#...", "..#..", "...#."),
+        ')' to arrayOf(".#...", "..#..", "...#.", "...#.", "...#.", "..#..", ".#..."),
+        ',' to arrayOf(".....", ".....", ".....", ".....", ".##..", "..#..", ".#..."),
+        '%' to arrayOf("##..#", "##.#.", "...#.", "..#..", ".#...", ".#.##", "#..##"),
     )
 
     fun glyph(c: Char): Array<String>? = GLYPHS[c.uppercaseChar()]
+
+    /** Text the board can show: accents dropped ("Montréal" → "MONTREAL"), anything else unknown blanked. */
+    fun clean(s: String): String = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{M}+"), "").uppercase()
+        .map { if (it == ' ' || glyph(it) != null) it else ' ' }.joinToString("")
+        .replace(Regex(" +"), " ").trim()
+
+    /** How many characters fit in [cols] at [scale]. */
+    fun fits(cols: Int, scale: Int = 1) = (cols / scale + 1) / (W + 1)
 
     /** Width in cells at [scale], with one blank column between characters. */
     fun width(text: String, scale: Int = 1) = if (text.isEmpty()) 0 else (text.length * (W + 1) - 1) * scale

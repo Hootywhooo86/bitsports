@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The animated 128x16 LED strip for a collapsed notification and the heads-up. -->
+<ViewFlipper xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/frames"
+    android:layout_width="match_parent"
+    android:layout_height="40dp"
+    android:autoStart="true"
+    android:flipInterval="900" />
