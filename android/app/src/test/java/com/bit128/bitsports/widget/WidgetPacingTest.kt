@@ -13,7 +13,10 @@ class WidgetPacingTest {
         1, state, true, Instant.ofEpochMilli(now + startsInMin * 60_000), TeamLine(1, "CAR", 0, 0), TeamLine(2, "EDM", 0, 0), null,
     )
 
-    @Test fun liveIsEvery30Seconds() = assertEquals(now + 30_000, WidgetPacing.next(now, listOf(game(GameState.LIVE, -40))))
+    @Test fun liveLandsOnTheNhlsNextCopy() {
+        assertEquals(now + 6_700, WidgetPacing.next(now, listOf(game(GameState.LIVE, -40)), freshInMs = 6_700))
+        assertEquals(now + 20_000, WidgetPacing.next(now, listOf(game(GameState.LIVE, -40)))) // no cache timing: the NHL's ~20s
+    }
 
     @Test fun lastHalfHourBeforePuckDropIsEveryMinute() {
         assertEquals(now + 60_000, WidgetPacing.next(now, listOf(game(GameState.FUT, 20))))

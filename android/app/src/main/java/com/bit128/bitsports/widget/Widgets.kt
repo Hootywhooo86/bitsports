@@ -53,8 +53,8 @@ class ScoresWidget : AppWidgetProvider() {
 }
 
 /**
- * Keeps widgets current without the app open, on the pacing in [WidgetPacing]: every 30s while a
- * game they show is live, every 15 minutes at the quietest. Re-armed after restarts and updates.
+ * Keeps widgets current without the app open, on the pacing in [WidgetPacing]: with each new copy
+ * the NHL publishes (~20s) while a game they show is live, every 15 minutes at the quietest. Re-armed after restarts and updates.
  */
 class WidgetTicker : android.content.BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) = Widgets.refresh(context, goAsync())
@@ -74,6 +74,8 @@ object Widgets {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     /** Last play-by-play per game, so a scoreboard-only update can still redraw the board. */
     private val details = java.util.concurrent.ConcurrentHashMap<Long, GameDetail>()
+    /** When the NHL's next copy of the scoreboard is due, from the last fetch. */
+    @Volatile private var freshInMs: Long? = null
 
     private fun ids(context: Context, cls: Class<*>): IntArray =
         AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, cls))
@@ -88,7 +90,9 @@ object Widgets {
             try {
                 if (!any(app)) { cancelTick(app); return@launch }
                 val source = DirectNhlSource()
-                val games = runCatching { source.scoreboard() }.getOrNull()
+                val paced = runCatching { source.scoreboardPaced() }.getOrNull()
+                freshInMs = paced?.second
+                val games = paced?.first
                 if (games == null) {
                     // One miss (phone waking up, switching networks) shouldn't leave widgets stale: retry soon.
                     drawAll(app, null)
@@ -166,13 +170,13 @@ object Widgets {
     private const val RETRY_MS = 2 * 60_000L
 
     /**
-     * While any widget exists there's always a next refresh: every 30s while a game it shows is
-     * live, every minute in the half hour before puck drop, at puck drop for a game later today,
+     * While any widget exists there's always a next refresh: right after each new NHL copy (~20s)
+     * while a game it shows is live, every minute in the half hour before puck drop, at puck drop for a game later today,
      * and every 15 minutes otherwise (so finals and tomorrow's schedule turn up without the app).
      */
     private fun scheduleTick(context: Context, games: List<Game>) {
         if (!any(context)) { cancelTick(context); return }
-        tickAt(context, WidgetPacing.next(System.currentTimeMillis(), watched(context, games)))
+        tickAt(context, WidgetPacing.next(System.currentTimeMillis(), watched(context, games), freshInMs))
     }
 
     private fun tickAt(context: Context, at: Long) {
@@ -360,12 +364,14 @@ object Widgets {
 
 /** When widgets next refresh, from the games they show. Pure, so the pacing is tested. */
 object WidgetPacing {
-    private const val LIVE_MS = 30_000L
+    /** Live without cache timing: the NHL's own refresh period. */
+    private const val LIVE_MS = 20_000L
     private const val SOON_MS = 60_000L
     private const val IDLE_MS = 15 * 60_000L
 
-    fun next(now: Long, shown: List<Game>): Long {
-        if (shown.any { it.state.isLive }) return now + LIVE_MS
+    /** [freshInMs]: when the NHL publishes its next copy; live widgets land just after it, like the app. */
+    fun next(now: Long, shown: List<Game>, freshInMs: Long? = null): Long {
+        if (shown.any { it.state.isLive }) return now + (freshInMs ?: LIVE_MS)
         val upcoming = shown.filter { !it.state.isOver && it.scheduleOk }.map { it.startUtc.toEpochMilli() }.filter { it > now - 30 * 60_000L }
         val soonest = upcoming.minOrNull()
         return when {

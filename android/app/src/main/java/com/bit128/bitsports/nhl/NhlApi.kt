@@ -13,6 +13,8 @@ import java.time.Instant
 // faster only re-reads the same copy. Live polls instead land just after each copy expires.
 interface NhlSource {
     suspend fun scoreboard(): List<Game>
+    /** Today's games plus how long until the NHL publishes a newer copy (null if unknown). */
+    suspend fun scoreboardPaced(): Pair<List<Game>, Long?> = scoreboard() to null
     suspend fun playByPlay(gameId: Long): GameDetail
     suspend fun extras(gameId: Long): GameExtras = GameExtras()
     suspend fun nextGames(abbrev: String): List<Game> = emptyList()
@@ -24,7 +26,12 @@ class DirectNhlSource(
     private val base: String = "https://api-web.nhle.com/v1",
     private val stats: String = "https://api.nhle.com/stats/rest/en",
 ) : NhlSource {
-    override suspend fun scoreboard(): List<Game> = NhlParser.scoreboard(get("$base/score/now"))
+    override suspend fun scoreboard(): List<Game> = scoreboardPaced().first
+
+    override suspend fun scoreboardPaced(): Pair<List<Game>, Long?> {
+        val r = getWithCache("$base/score/now")
+        return NhlParser.scoreboard(r.body) to CachePacing.nextPollMs(r.maxAge, r.age)
+    }
 
     override suspend fun playByPlay(gameId: Long): GameDetail {
         val r = getWithCache("$base/gamecenter/$gameId/play-by-play")

@@ -104,6 +104,7 @@ class BitsportsViewModel(
     var leagueError by mutableStateOf<String?>(null)
         private set
     private var leagueAt: Instant? = null
+    private var scoreboardFreshInMs: Long? = null
     /** Ticks every few seconds so "updated Ns ago" labels stay current. */
     var now by mutableStateOf(Instant.now())
         private set
@@ -190,7 +191,8 @@ class BitsportsViewModel(
             delay(
                 when {
                     !ok -> minOf(15_000L * failures, 60_000L) // back off, but never sit on an error for 5 minutes
-                    games.any { it.state.isLive } -> 15_000
+                    // Live: right after the NHL's next copy, the same moment the widgets refresh.
+                    games.any { it.state.isLive } -> scoreboardFreshInMs ?: 15_000
                     games.any { !it.state.isOver && Duration.between(now, it.startUtc).toMinutes() < 20 } -> 60_000
                     else -> 300_000
                 }
@@ -202,7 +204,9 @@ class BitsportsViewModel(
 
     private suspend fun refreshGamesOnce(): Boolean {
         val ok = try {
-            games = source.scoreboard()
+            val (list, freshIn) = source.scoreboardPaced()
+            games = list
+            scoreboardFreshInMs = freshIn
             gamesFetchedAt = Instant.now()
             gamesError = null
             com.bit128.bitsports.widget.Widgets.pushScoreboard(appContext, games)

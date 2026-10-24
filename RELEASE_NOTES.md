@@ -1,4 +1,9 @@
-## bitsports 0.8.1 — widgets that keep themselves current
+## bitsports 0.8.2 — live widgets keep pace with the app
+
+- **During a live game the widgets now refresh as often as the app**: right after each new copy the NHL publishes, about every 20 seconds, instead of every 30. The app's scores list now runs on the same timing, so the widget and the app change together.
+- The NHL's free feed only publishes a new copy about every 20 seconds, so that's the fastest anything built on it can update.
+
+## From 0.8.1 — widgets that keep themselves current
 
 Widgets no longer wait for you to open the app.
 
