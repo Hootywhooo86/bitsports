@@ -53,8 +53,8 @@ class ScoresWidget : AppWidgetProvider() {
 }
 
 /**
- * Keeps widgets live without the app open: once a minute while a game they show is on, at puck
- * drop for one coming up, and not at all otherwise (the 30-minute widget tick covers the rest).
+ * Keeps widgets current without the app open, on the pacing in [WidgetPacing]: every 30s while a
+ * game they show is live, every 15 minutes at the quietest. Re-armed after restarts and updates.
  */
 class WidgetTicker : android.content.BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) = Widgets.refresh(context, goAsync())
@@ -89,7 +89,12 @@ object Widgets {
                 if (!any(app)) { cancelTick(app); return@launch }
                 val source = DirectNhlSource()
                 val games = runCatching { source.scoreboard() }.getOrNull()
-                if (games == null) { drawAll(app, null); return@launch }
+                if (games == null) {
+                    // One miss (phone waking up, switching networks) shouldn't leave widgets stale: retry soon.
+                    drawAll(app, null)
+                    tickAt(app, System.currentTimeMillis() + RETRY_MS)
+                    return@launch
+                }
                 val prefs = WidgetPrefs(app)
                 ids(app, RinkWidget::class.java).toList().mapNotNull { prefs.teamFor(it)?.let { t -> gameFor(games, t) } }
                     .filter { it.state.isLive || it.state.isOver }
@@ -158,15 +163,19 @@ object Widgets {
         return games.filter { it.away.abbrev in teams || it.home.abbrev in teams }
     }
 
+    private const val RETRY_MS = 2 * 60_000L
+
+    /**
+     * While any widget exists there's always a next refresh: every 30s while a game it shows is
+     * live, every minute in the half hour before puck drop, at puck drop for a game later today,
+     * and every 15 minutes otherwise (so finals and tomorrow's schedule turn up without the app).
+     */
     private fun scheduleTick(context: Context, games: List<Game>) {
-        val now = System.currentTimeMillis()
-        val shown = watched(context, games)
-        val at = when {
-            shown.any { it.state.isLive } -> now + 60_000
-            else -> shown.filter { !it.state.isOver && it.scheduleOk }.map { it.startUtc.toEpochMilli() }
-                .filter { it > now && it - now < 6 * 3600_000L }.minOrNull()?.let { maxOf(it + 30_000, now + 60_000) }
-        }
-        if (at == null) { cancelTick(context); return }
+        if (!any(context)) { cancelTick(context); return }
+        tickAt(context, WidgetPacing.next(System.currentTimeMillis(), watched(context, games)))
+    }
+
+    private fun tickAt(context: Context, at: Long) {
         val am = context.getSystemService(AlarmManager::class.java)
         if (AlertScheduler.canExact(context)) am.setExactAndAllowWhileIdle(AlarmManager.RTC, at, tickIntent(context))
         else am.setAndAllowWhileIdle(AlarmManager.RTC, at, tickIntent(context))
@@ -346,5 +355,23 @@ object Widgets {
         val grid = HeatMap.draw(heat, HockeyBoard.colors(awayAbbrev ?: ""), HockeyBoard.colors(homeAbbrev ?: ""))
         v.setImageViewBitmap(R.id.board, LedBitmaps.render(grid, cell = 5, dots = cfg.board != "solid"))
         return v
+    }
+}
+
+/** When widgets next refresh, from the games they show. Pure, so the pacing is tested. */
+object WidgetPacing {
+    private const val LIVE_MS = 30_000L
+    private const val SOON_MS = 60_000L
+    private const val IDLE_MS = 15 * 60_000L
+
+    fun next(now: Long, shown: List<Game>): Long {
+        if (shown.any { it.state.isLive }) return now + LIVE_MS
+        val upcoming = shown.filter { !it.state.isOver && it.scheduleOk }.map { it.startUtc.toEpochMilli() }.filter { it > now - 30 * 60_000L }
+        val soonest = upcoming.minOrNull()
+        return when {
+            soonest == null -> now + IDLE_MS
+            soonest - now <= 30 * 60_000L -> now + SOON_MS // includes a game that should have started but isn't live yet
+            else -> minOf(soonest - 30 * 60_000L, now + IDLE_MS) // wake as the half-hour-before window opens
+        }
     }
 }

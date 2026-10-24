@@ -199,6 +199,8 @@ object AlertScheduler {
     class BootReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == Intent.ACTION_BOOT_COMPLETED || intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+                // A restart or an app update wipes every alarm, the widgets' refresh timer included.
+                com.bit128.bitsports.widget.Widgets.refresh(context)
                 val done = goAsync()
                 refresh(context) { done.finish() }
             }

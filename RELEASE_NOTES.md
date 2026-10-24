@@ -1,4 +1,12 @@
-## bitsports 0.8.0 — listen live, and plays as soon as the NHL posts them
+## bitsports 0.8.1 — widgets that keep themselves current
+
+Widgets no longer wait for you to open the app.
+
+- **Always on a schedule.** While you have a bitsports widget, it refreshes every 30 seconds while a game it shows is live, every minute in the half hour before puck drop, and every 15 minutes the rest of the time, so finals and the next day's games turn up on their own.
+- **Fixed: updating bitsports or restarting your phone stopped widget refreshes.** Android wipes an app's alarms on both; the widgets' timer is now set again straight away.
+- **Fixed: one failed check left widgets stale for up to 30 minutes.** A miss (phone waking up, switching between Wi-Fi and data) now retries in 2 minutes.
+
+## From 0.8.0 — listen live, and plays as soon as the NHL posts them
 
 - **♪ Listen live.** The game screen has a Listen live button for your team's radio call, and the live mini scoreboard in your notifications has one too. Oilers games open **880 CHED**'s official player, which keeps playing with the screen off. Other teams get a TuneIn search for their radio call, or paste your own station's listen-live link in **Settings → Goals + alerts → Radio**.
 - **Faster live updates.** The NHL's public feed publishes a fresh copy about every 20 seconds, so second-by-second isn't possible from it. Live games now check right as each new copy comes out, instead of on a fixed 15-second timer that could leave you up to 35 seconds behind. New plays, goals and the clock show up within about a second of the NHL posting them, in the app, in goal alerts and on the mini scoreboard.
