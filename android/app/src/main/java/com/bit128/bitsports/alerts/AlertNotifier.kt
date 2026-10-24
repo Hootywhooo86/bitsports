@@ -268,6 +268,18 @@ object AlertNotifier {
             .setSilent(true)
             .setContentIntent(openGameIntent(context, game.id))
             .addAction(0, "Open game", openGameIntent(context, game.id))
+            .apply {
+                // Your team's radio call, one tap from the shade.
+                val prefs = com.bit128.bitsports.PrefsStore(context).load()
+                val mine = AlertScheduler.followedAbbrevs(context).firstOrNull { it == game.away.abbrev || it == game.home.abbrev }
+                if (mine != null && !game.state.isOver) {
+                    val station = com.bit128.bitsports.nhl.NhlRadio.forTeam(mine, prefs.radioUrl)
+                    addAction(0, "Listen live", PendingIntent.getActivity(
+                        context, ("radio" + game.id).hashCode(), Intent(Intent.ACTION_VIEW, Uri.parse(station.url)),
+                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                    ))
+                }
+            }
             .addAction(0, "Stop for tonight", stopIntent)
             .build()
     }

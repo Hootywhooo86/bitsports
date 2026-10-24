@@ -24,6 +24,8 @@ data class UiPrefs(
     val alertPeriods: Boolean = true,
     val alertRecap: Boolean = true,
     val alertFinal: Boolean = true,
+    /** A listen-live link for your team's radio call, if you'd rather use your own. */
+    val radioUrl: String = "",
 )
 
 fun UiPrefs.alertPrefs() = AlertPrefs(
@@ -64,6 +66,7 @@ class PrefsStore(context: Context) {
             alertPeriods = prefs.getBoolean("alertPeriods", d.alertPeriods),
             alertRecap = prefs.getBoolean("alertRecap", d.alertRecap),
             alertFinal = prefs.getBoolean("alertFinal", d.alertFinal),
+            radioUrl = prefs.getString("radioUrl", d.radioUrl) ?: d.radioUrl,
         )
     }
 
@@ -84,6 +87,7 @@ class PrefsStore(context: Context) {
             .putBoolean("alertPeriods", p.alertPeriods)
             .putBoolean("alertRecap", p.alertRecap)
             .putBoolean("alertFinal", p.alertFinal)
+            .putString("radioUrl", p.radioUrl)
             .apply()
     }
 }

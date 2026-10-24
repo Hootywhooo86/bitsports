@@ -9,7 +9,8 @@ import java.net.URL
 import java.time.Instant
 
 // The NHL's public web API: free, no key, unofficial (can change without notice).
-// Responses are cached ~17s upstream, so callers never poll faster than every 15s.
+// Responses are cached for 19s at the NHL's CDN, so a new copy exists at most every ~20s: polling
+// faster only re-reads the same copy. Live polls instead land just after each copy expires.
 interface NhlSource {
     suspend fun scoreboard(): List<Game>
     suspend fun playByPlay(gameId: Long): GameDetail
@@ -25,8 +26,10 @@ class DirectNhlSource(
 ) : NhlSource {
     override suspend fun scoreboard(): List<Game> = NhlParser.scoreboard(get("$base/score/now"))
 
-    override suspend fun playByPlay(gameId: Long): GameDetail =
-        NhlParser.playByPlay(get("$base/gamecenter/$gameId/play-by-play"), Instant.now())
+    override suspend fun playByPlay(gameId: Long): GameDetail {
+        val r = getWithCache("$base/gamecenter/$gameId/play-by-play")
+        return NhlParser.playByPlay(r.body, Instant.now()).copy(freshInMs = CachePacing.nextPollMs(r.maxAge, r.age))
+    }
 
     /** Everything around the play-by-play. Each piece is optional: one failing never hides the rest. */
     override suspend fun extras(gameId: Long): GameExtras {
@@ -55,7 +58,11 @@ class DirectNhlSource(
      * A phone drops requests all the time (lift, tunnel, waking from sleep), so one miss gets two
      * quick retries before it counts as the feed being down.
      */
-    private suspend fun get(url: String): String {
+    private suspend fun get(url: String): String = getWithCache(url).body
+
+    private class Response(val body: String, val maxAge: Int?, val age: Int?)
+
+    private suspend fun getWithCache(url: String): Response {
         var last: IOException? = null
         for (wait in RETRY_WAITS) {
             if (wait > 0) delay(wait)
@@ -68,7 +75,7 @@ class DirectNhlSource(
         throw last ?: IOException("NHL feed unreachable")
     }
 
-    private suspend fun fetch(url: String): String = withContext(Dispatchers.IO) {
+    private suspend fun fetch(url: String): Response = withContext(Dispatchers.IO) {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
             conn.instanceFollowRedirects = true // score/now answers with a 307 to today's date
@@ -78,7 +85,12 @@ class DirectNhlSource(
             conn.setRequestProperty("User-Agent", "bitsports-android")
             val code = conn.responseCode
             if (code !in 200..299) throw IOException("NHL feed answered $code")
-            conn.inputStream.bufferedReader().use { it.readText() }
+            val body = conn.inputStream.bufferedReader().use { it.readText() }
+            Response(
+                body,
+                maxAge = conn.getHeaderField("Cache-Control")?.let { Regex("max-age=(\\d+)").find(it)?.groupValues?.get(1)?.toIntOrNull() },
+                age = conn.getHeaderField("Age")?.trim()?.toIntOrNull(),
+            )
         } finally {
             conn.disconnect()
         }
@@ -86,5 +98,17 @@ class DirectNhlSource(
 
     private companion object {
         val RETRY_WAITS = longArrayOf(0, 1_500, 4_000)
+    }
+}
+
+/** When to poll next so each check lands just after the CDN's copy expires. */
+object CachePacing {
+    /** Slack after expiry, so our request is the one that fetches the new copy rather than a beat too early. */
+    private const val SLACK_MS = 700L
+
+    fun nextPollMs(maxAge: Int?, age: Int?): Long? {
+        if (maxAge == null || maxAge <= 0) return null
+        val left = (maxAge - (age ?: 0)).coerceAtLeast(0)
+        return (left * 1000L + SLACK_MS).coerceIn(1_500L, 20_000L)
     }
 }

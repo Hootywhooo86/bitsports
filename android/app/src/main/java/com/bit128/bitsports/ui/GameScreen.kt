@@ -37,6 +37,7 @@ import com.bit128.bitsports.nhl.GameAnalysis
 import com.bit128.bitsports.nhl.GameDetail
 import com.bit128.bitsports.nhl.GameExtras
 import com.bit128.bitsports.nhl.GoalEvent
+import com.bit128.bitsports.nhl.NhlRadio
 import com.bit128.bitsports.nhl.NhlTeams
 import com.bit128.bitsports.nhl.OnIce
 import com.bit128.bitsports.nhl.PlayText
@@ -70,7 +71,7 @@ fun GameScreen(vm: BitsportsViewModel, onBack: () -> Unit) {
                 val note = when {
                     vm.detailError != null && d != null -> "${stale ?: "Just updated"} · reconnecting"
                     vm.detailError != null -> "Can't reach the NHL feed · retrying"
-                    game?.state?.isLive == true -> stale ?: "Live · updates every 15s"
+                    game?.state?.isLive == true -> stale ?: "Live · new plays as the NHL posts them (~20s)"
                     else -> stale ?: ""
                 }
                 Text(note, color = if (vm.detailError != null && d == null) Warn else Muted, fontSize = 12.sp,
@@ -87,6 +88,7 @@ fun GameScreen(vm: BitsportsViewModel, onBack: () -> Unit) {
             Board(game, x)
             Spacer(Modifier.height(12.dp))
             WatchButton(game, vm.followedAbbrevs())
+            ListenButtons(game, vm.followedAbbrevs(), vm.ui.radioUrl)
             Spacer(Modifier.height(16.dp))
             Segmented(GameTab.entries.map { it.label }, tab.ordinal) { tab = GameTab.entries[it] }
             Spacer(Modifier.height(24.dp))
@@ -134,6 +136,35 @@ private fun TeamBlock(abbrev: String, t: TeamExtras?, modifier: Modifier) {
         Spacer(Modifier.height(8.dp))
         Text(AlertCopy.nick(abbrev), color = TextInk, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
         t?.record?.let { Text(it, color = Muted, fontSize = 12.sp) }
+    }
+}
+
+/**
+ * Listen live to the radio call: your team's station first (or the station you set in Settings),
+ * else both teams'. Opens the broadcaster's own player, which keeps playing with the screen off.
+ */
+@Composable
+private fun ListenButtons(g: Game, followed: Set<String>, custom: String) {
+    if (g.state.isOver) return
+    val ctx = LocalContext.current
+    val mine = listOf(g.away.abbrev, g.home.abbrev).filter { it in followed }
+    val teams = mine.ifEmpty { listOf(g.away.abbrev, g.home.abbrev) }
+    Spacer(Modifier.height(8.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        teams.forEach { abbrev ->
+            val station = NhlRadio.forTeam(abbrev, if (abbrev in mine) custom else null)
+            OutlinedButton(
+                onClick = { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(station.url))) },
+                border = BorderStroke(1.dp, Line2), shape = RoundedCornerShape(11.dp),
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("♪ Listen live · $abbrev", color = TextInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(if (station.official) station.name else if (abbrev in mine && custom.isNotBlank()) "Your station" else "Find the radio call",
+                        color = Muted, fontSize = 11.sp)
+                }
+            }
+        }
     }
 }
 

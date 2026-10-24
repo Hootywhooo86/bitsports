@@ -352,7 +352,8 @@ class BitsportsViewModel(
                     }
                 }
                 tick++
-                delay(if (live) 15_000 else if (detailError != null) 20_000 else 60_000)
+                // Live: land on the NHL's next copy (~every 20s) instead of a fixed 15s timer.
+                delay(if (live) detail?.freshInMs ?: 15_000 else if (detailError != null) 20_000 else 60_000)
             }
         }
     }

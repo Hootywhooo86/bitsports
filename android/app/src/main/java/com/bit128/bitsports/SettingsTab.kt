@@ -119,6 +119,20 @@ fun SettingsTab(vm: BitsportsViewModel) {
                         modifier = Modifier.fillMaxWidth().height(44.dp),
                     ) { Text("Preview", color = TextInk, fontWeight = FontWeight.SemiBold) }
                 }
+                Option("Radio", "Listen live on the game screen and the mini scoreboard opens your team's radio call. Oilers: 880 CHED. Other teams: a TuneIn search, or paste your station's listen-live link here.") {
+                    var link by remember(ui.radioUrl) { mutableStateOf(ui.radioUrl) }
+                    OutlinedTextField(
+                        value = link, onValueChange = { link = it; vm.updateUi(ui.copy(radioUrl = it.trim())) },
+                        placeholder = { Text("https://… (optional)", color = Dim) },
+                        singleLine = true, shape = RoundedCornerShape(11.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Card2, unfocusedContainerColor = Card2,
+                            focusedBorderColor = Line2, unfocusedBorderColor = Line,
+                            focusedTextColor = TextInk, unfocusedTextColor = TextInk,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 Option("Game alerts", "For your NHL teams, even with the app closed.", divider = false) {
                     ToggleRow("30 minutes before puck drop", ui.alertPregame) { set(ui.copy(alertPregame = it)) }
                     ToggleRow("Goals", ui.alertGoals) { set(ui.copy(alertGoals = it)) }

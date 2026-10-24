@@ -1,4 +1,9 @@
-## bitsports 0.7.4 — your team's goals, even if you allowed notifications late
+## bitsports 0.8.0 — listen live, and plays as soon as the NHL posts them
+
+- **♪ Listen live.** The game screen has a Listen live button for your team's radio call, and the live mini scoreboard in your notifications has one too. Oilers games open **880 CHED**'s official player, which keeps playing with the screen off. Other teams get a TuneIn search for their radio call, or paste your own station's listen-live link in **Settings → Goals + alerts → Radio**.
+- **Faster live updates.** The NHL's public feed publishes a fresh copy about every 20 seconds, so second-by-second isn't possible from it. Live games now check right as each new copy comes out, instead of on a fixed 15-second timer that could leave you up to 35 seconds behind. New plays, goals and the clock show up within about a second of the NHL posting them, in the app, in goal alerts and on the mini scoreboard.
+
+## From 0.7.4 — your team's goals, even if you allowed notifications late
 
 - **Fixed: goals were thrown away while notifications were still off.** Opening bitsports during your team's game starts watching straight away, and Android asks "Allow notifications?" at the same moment. The first check ran before you tapped Allow, saw the goals so far, couldn't post them, and still counted them as announced, so they never came. Now nothing counts as announced until Android actually lets it through; the moment you allow notifications, the next check (within 15 seconds) sends them.
 - **Catch-up alert.** When bitsports starts watching a game that's already under way, you get one alert with the score, how many goals so far and the latest scorer (on the animated LED board) instead of a burst of old goals. Every goal after that gets its own alert. If the game is already over, you just get the final.

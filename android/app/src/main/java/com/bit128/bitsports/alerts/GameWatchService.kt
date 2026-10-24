@@ -83,7 +83,8 @@ class GameWatchService : Service() {
             try {
                 val d = source.playByPlay(gameId)
                 last = d
-                backoffMs = POLL_MS
+                // Live: check again the moment the NHL publishes its next copy (~every 20s).
+                backoffMs = if (d.game.state.isLive) d.freshInMs ?: POLL_MS else POLL_MS
                 if (handle(d, store)) break
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e

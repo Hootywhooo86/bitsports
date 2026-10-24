@@ -57,6 +57,8 @@ data class GameDetail(
     val threeStars: List<String>,
     val fetchedAt: Instant,
     val homeDefendingSide: String? = null,
+    /** How long until the NHL publishes a newer copy, from the feed's cache headers; null if unknown. */
+    val freshInMs: Long? = null,
 )
 
 enum class Strength { EV, PP, SH, EN }
