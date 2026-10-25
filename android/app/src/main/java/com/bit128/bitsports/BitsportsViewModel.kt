@@ -169,6 +169,7 @@ class BitsportsViewModel(
     fun onForeground() {
         // Opening the app mid-game starts the watcher if the background start was blocked.
         AlertScheduler.refresh(appContext)
+        com.bit128.bitsports.calendar.BitcalSync.sync(appContext)
         if (pollJobs.any { it.isActive }) return
         pollJobs = listOf(
             viewModelScope.launch { pollGames() },
@@ -452,6 +453,7 @@ class BitsportsViewModel(
 
     private fun teamsChanged() {
         store.save(teams)
+        com.bit128.bitsports.calendar.BitcalSync.sync(appContext, force = true)
         AlertScheduler.refresh(appContext)
         com.bit128.bitsports.widget.Widgets.refresh(appContext)
         refreshNews()

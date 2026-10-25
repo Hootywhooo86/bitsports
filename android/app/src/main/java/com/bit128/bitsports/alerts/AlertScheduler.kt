@@ -162,7 +162,10 @@ object AlertScheduler {
             val gameId = intent.getLongExtra(EXTRA_GAME, -1L)
             val done = goAsync()
             when (intent.action) {
-                ACTION_DAILY -> refresh(context) { done.finish() }
+                ACTION_DAILY -> {
+                    com.bit128.bitsports.calendar.BitcalSync.sync(context, force = true)
+                    refresh(context) { done.finish() }
+                }
                 ACTION_WATCH -> {
                     scope.launch {
                         if (!WatchStore(context).skippedTonight(gameId) && !GameWatchService.start(context, gameId)) {

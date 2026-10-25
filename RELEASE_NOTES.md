@@ -1,4 +1,10 @@
-## bitsports 0.8.2 — live widgets keep pace with the app
+## bitsports 0.9.0 — your teams' games in Bitcal
+
+- **Every game of your NHL teams, on your calendar.** Sign in once under **Settings → Bitcal**, with the same 128bit account you use for Bitcal and 128bit Play. bitsports then adds a **"bitsports · NHL"** calendar to Bitcal with the whole regular season for every NHL team you follow: home games as "Oilers vs Hurricanes", away games as "Oilers @ Flames", with the arena, TV channels and your radio call. Playoff games are added once they're scheduled. Preseason games are left out.
+- **Keeps itself up to date.** Changed start times, postponements and final scores ("Oilers 6–5 Hurricanes · W (SO)") update every morning, after each of your games, whenever you open the app, and right away when you change teams. If you stop following a team, its games are removed. Any game you edit yourself in Bitcal is left alone.
+- **Update now**, an on/off switch, sign out, and "Remove the games from Bitcal" are all in Settings.
+
+## From 0.8.2 — live widgets keep pace with the app
 
 - **During a live game the widgets now refresh as often as the app**: right after each new copy the NHL publishes, about every 20 seconds, instead of every 30. The app's scores list now runs on the same timing, so the widget and the app change together.
 - The NHL's free feed only publishes a new copy about every 20 seconds, so that's the fastest anything built on it can update.

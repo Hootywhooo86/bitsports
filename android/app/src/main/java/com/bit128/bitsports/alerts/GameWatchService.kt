@@ -95,6 +95,8 @@ class GameWatchService : Service() {
             }
             delay(backoffMs)
         }
+        // Over: the final score goes onto the calendar entry.
+        com.bit128.bitsports.calendar.BitcalSync.sync(this, force = true)
         stopGame(gameId, skipTonight = false)
     }
 

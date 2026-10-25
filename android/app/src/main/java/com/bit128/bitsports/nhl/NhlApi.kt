@@ -18,6 +18,7 @@ interface NhlSource {
     suspend fun playByPlay(gameId: Long): GameDetail
     suspend fun extras(gameId: Long): GameExtras = GameExtras()
     suspend fun nextGames(abbrev: String): List<Game> = emptyList()
+    suspend fun season(abbrev: String): List<ScheduleGame> = emptyList()
     suspend fun standings(): List<StandingRow> = emptyList()
     suspend fun leaders(): List<LeaderBoard> = emptyList()
 }
@@ -57,6 +58,9 @@ class DirectNhlSource(
         if (skaters == null && goalies == null) throw IOException("NHL leaders unreachable")
         return NhlLeagueParser.leaders(skaters, goalies)
     }
+
+    override suspend fun season(abbrev: String): List<ScheduleGame> =
+        NhlSeasonParser.season(get("$base/club-schedule-season/${abbrev.uppercase()}/now"))
 
     override suspend fun nextGames(abbrev: String): List<Game> =
         NhlParser.scoreboard(get("$base/club-schedule/${abbrev.uppercase()}/week/now"))

@@ -145,6 +145,10 @@ fun SettingsTab(vm: BitsportsViewModel) {
             }
         }
 
+        Spacer(Modifier.height(32.dp))
+        SectionHead("BITCAL", "Your NHL games on the calendar")
+        BitcalSettings()
+
         Spacer(Modifier.height(24.dp))
         OutlinedButton(
             onClick = { vm.updateUi(UiPrefs()) },
