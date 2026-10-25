@@ -71,7 +71,7 @@ fun SettingsTab(vm: BitsportsViewModel) {
         SectionHead("LOOK", "")
         CardBox {
             Column(Modifier.padding(horizontal = 16.dp)) {
-                Option("Accent", "Buttons, selected tabs and the logo. Team colours and LIVE never change.") {
+                Option("Accent", "Buttons, selected tabs and the logo. LIVE stays red; team colours are set below.") {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         ACCENTS.forEach { (name, value) ->
                             val on = ui.accent == value
@@ -95,6 +95,9 @@ fun SettingsTab(vm: BitsportsViewModel) {
                 }
                 Option("Headings", "Pixel type like the rest of 128bit, or plain.") {
                     Segmented(listOf("Pixel", "Plain"), if (ui.plainHeadings) 1 else 0) { vm.updateUi(ui.copy(plainHeadings = it == 1)) }
+                }
+                Option("Team colours", "How each team lights up on the boards, heat maps, alerts and widgets. Two teams that look alike in a game are split up for you; pick your own for any team here.") {
+                    TeamColorPicker(vm.followedAbbrevs().toList())
                 }
                 Option("Home page", null, divider = false) {
                     ToggleRow("News under your games", ui.showNews) { vm.updateUi(ui.copy(showNews = it)) }

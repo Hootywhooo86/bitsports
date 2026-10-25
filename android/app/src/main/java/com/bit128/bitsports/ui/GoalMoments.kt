@@ -31,7 +31,7 @@ object GoalMoments {
     fun build(style: String, teamAbbrev: String, scorer: String?, total: Int?, frame: Int): LedGrid {
         val g = LedGrid(COLS, ROWS)
         val c = HockeyBoard.colors(teamAbbrev)
-        val led = HockeyBoard.led(c)
+        val led = TeamInk.of(teamAbbrev)
         val f = frame.coerceAtLeast(0)
         when (style) {
             "burst" -> burst(g, c, f)

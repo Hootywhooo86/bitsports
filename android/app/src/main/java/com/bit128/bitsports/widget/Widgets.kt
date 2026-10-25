@@ -356,7 +356,7 @@ object Widgets {
         val shots = d?.let { GameAnalysis.shots(it) }.orEmpty()
         val only = if (cfg.heat == "mine") team else null
         val heat = HeatMap.heat(shots, awayAbbrev ?: "", only)
-        val grid = HeatMap.draw(heat, HockeyBoard.colors(awayAbbrev ?: ""), HockeyBoard.colors(homeAbbrev ?: ""))
+        val grid = HeatMap.draw(heat, com.bit128.bitsports.ui.TeamInk.pair(awayAbbrev ?: "", homeAbbrev ?: ""))
         v.setImageViewBitmap(R.id.board, LedBitmaps.render(grid, cell = 5, dots = cfg.board != "solid"))
         return v
     }

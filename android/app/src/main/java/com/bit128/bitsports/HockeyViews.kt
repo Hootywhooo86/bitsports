@@ -38,7 +38,7 @@ private fun ordinal(n: Int) = n.toString() + when {
     else -> "th"
 }
 
-private fun ledOf(abbrev: String) = Color(HockeyBoard.led(HockeyBoard.colors(abbrev)))
+private fun ledOf(abbrev: String) = Color(com.bit128.bitsports.ui.TeamInk.of(abbrev))
 
 /** One card per NHL team you follow: jersey, place in its division, points and form. */
 @Composable

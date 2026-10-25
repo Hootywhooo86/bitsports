@@ -57,7 +57,7 @@ object LedScenes {
 
     fun goal(g: GoalEvent, game: Game, accent: Int): Scene {
         val c = team(g.teamAbbrev)
-        val led = HockeyBoard.led(c)
+        val led = TeamInk.of(g.teamAbbrev)
         fun lamp(on: Boolean): LedGrid = board().apply {
             // The goal light: a red dome with a bright core, and its glow either side.
             val col = if (on) LAMP else LAMP_OFF
@@ -97,6 +97,7 @@ object LedScenes {
     fun periodEnd(s: PeriodStats, label: String, game: Game, away: Int, home: Int, accent: Int): Scene {
         val ac = team(game.away.abbrev)
         val hc = team(game.home.abbrev)
+        val (aLed, hLed) = TeamInk.pair(game.away.abbrev, game.home.abbrev)
         val tag = "END OF ${label.uppercase()}"
         val score = HockeyBoard.build(
             HockeyBoard.input(game.copy(away = game.away.copy(score = away), home = game.home.copy(score = home)), accent)
@@ -105,12 +106,12 @@ object LedScenes {
         fun bars(rows: List<Triple<String, Pair<String, String>, Float>>): LedGrid = board().apply {
             rows.forEachIndexed { i, (name, values, share) ->
                 val y = 1 + i * 15
-                text(values.first, 2, y, HockeyBoard.led(ac))
+                text(values.first, 2, y, aLed)
                 textCenter(name, y, HockeyBoard.MUTED)
-                textRight(values.second, cols - 3, y, HockeyBoard.led(hc))
+                textRight(values.second, cols - 3, y, hLed)
                 val split = (share.coerceIn(0f, 1f) * (cols - 4)).toInt()
-                fill(2, y + 9, split, 3, HockeyBoard.led(ac))
-                fill(2 + split, y + 9, cols - 4 - split, 3, HockeyBoard.led(hc))
+                fill(2, y + 9, split, 3, aLed)
+                fill(2 + split, y + 9, cols - 4 - split, 3, hLed)
                 put(cols / 2, y + 8, HockeyBoard.WHITE); put(cols / 2, y + 12, HockeyBoard.WHITE) // centre mark
             }
         }
@@ -148,7 +149,7 @@ object LedScenes {
         val score = HockeyBoard.build(
             HockeyBoard.input(game, accent).copy(
                 clock = tag, clockColor = HockeyBoard.WHITE, progress = null,
-                zone = HockeyBoard.Zone.Line("${nick(winner)} WIN", HockeyBoard.led(wc)),
+                zone = HockeyBoard.Zone.Line("${nick(winner)} WIN", TeamInk.of(winner)),
             ),
         )
         val starFrames = stars.take(3).mapIndexed { i, name ->
@@ -186,7 +187,7 @@ object LedScenes {
                 lastGoal?.let { g ->
                     HockeyBoard.build(input.copy(zone = HockeyBoard.Zone.Line(
                         "GOAL ${lastName(g.scorer)} ${AlertPlanner.periodLabel(g.period, g.periodType).uppercase()}",
-                        HockeyBoard.led(team(g.teamAbbrev)),
+                        TeamInk.of(g.teamAbbrev),
                     )))
                 },
             )

@@ -8,7 +8,8 @@ import kotlin.math.sqrt
  * Shot pressure on the 128-pixel rink. Each team is drawn attacking the end under its own name
  * (away left, home right, like the widget's score line), so a lit end reads as "that team's
  * pressure". Every shot spreads a soft disc of heat; the total is banded into five pixel-art
- * levels of the team's colour, the hottest with a white-hot core. Goals are white sparks.
+ * levels of the team's colour, the hottest with a white-hot core. Goals are gold sparks ringed in
+ * black, so they show on any team's colour, white-hot ice included.
  */
 object HeatMap {
     /** Heat spreads this many pixels from a shot (about 11 ft). */
@@ -58,10 +59,10 @@ object HeatMap {
         return l
     }
 
-    fun draw(heat: Heat, awayColors: Pair<Int, Int>, homeColors: Pair<Int, Int>): LedGrid {
+    /** [inks]: the away and home LED colours, from [TeamInk.pair]. */
+    fun draw(heat: Heat, inks: Pair<Int, Int>): LedGrid {
         val g = PixelRink.copy()
-        val awayLed = HockeyBoard.led(awayColors)
-        val homeLed = HockeyBoard.led(homeColors)
+        val (awayLed, homeLed) = inks
         val awayMax = heat.away.maxOrNull() ?: 0f
         val homeMax = heat.home.maxOrNull() ?: 0f
         for (y in 0 until g.rows) for (x in 0 until g.cols) {
@@ -78,13 +79,30 @@ object HeatMap {
             if (lvl == 5) c = blend(c, 0xFFFFFFFF.toInt(), 0.28f)
             g.put(x, y, c)
         }
-        // Goals: a white plus-shaped spark with team-coloured corners.
-        heat.goals.forEachIndexed { k, (cx, cy) ->
-            val led = if (heat.goalTeams[k]) awayLed else homeLed
-            for ((dx, dy) in listOf(-1 to -1, 1 to -1, -1 to 1, 1 to 1)) g.put(cx + dx, cy + dy, led)
-            for ((dx, dy) in listOf(0 to 0, -1 to 0, 1 to 0, 0 to -1, 0 to 1, -2 to 0, 2 to 0, 0 to -2, 0 to 2)) g.put(cx + dx, cy + dy, HockeyBoard.WHITE)
-        }
+        heat.goals.forEachIndexed { k, (cx, cy) -> goalMark(g, cx, cy, if (heat.goalTeams[k]) awayLed else homeLed) }
         return g
+    }
+
+    const val GOAL = 0xFFFFD95E.toInt()
+    private val SPARK = listOf(0 to 0, -1 to 0, 1 to 0, 0 to -1, 0 to 1, -2 to 0, 2 to 0, 0 to -2, 0 to 2)
+    private val CORNERS = listOf(-1 to -1, 1 to -1, -1 to 1, 1 to 1)
+
+    /**
+     * A goal: a gold plus with a white centre and the scoring team's colour in its corners, ringed
+     * in black so it never melts into heat or shots of a similar colour.
+     */
+    fun goalMark(g: LedGrid, cx: Int, cy: Int, team: Int) {
+        val mark = (SPARK + CORNERS).toSet()
+        for ((dx, dy) in mark) for (ox in -1..1) for (oy in -1..1) {
+            val p = dx + ox to dy + oy
+            val x = cx + p.first
+            val y = cy + p.second
+            if (p in mark || x !in 0 until g.cols || y !in 0 until g.rows) continue
+            if (g[x, y] != PixelRink.BOARDS) g.put(x, y, PixelRink.OUTSIDE)
+        }
+        for ((dx, dy) in CORNERS) g.put(cx + dx, cy + dy, team)
+        for ((dx, dy) in SPARK) g.put(cx + dx, cy + dy, GOAL)
+        g.put(cx, cy, HockeyBoard.WHITE)
     }
 
     fun blend(from: Int, to: Int, t: Float): Int {

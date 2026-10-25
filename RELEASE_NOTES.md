@@ -1,4 +1,10 @@
-## bitsports 0.9.0 — your teams' games in Bitcal
+## bitsports 0.9.1 — team colours you can see, and pick
+
+- **Fixed: some teams were white on white.** The boards, heat maps, alerts and widgets used each team's brightest colour, so the Leafs, Lightning, Red Wings and Jets came out white and their goals disappeared into their own shots. Every team now has an LED colour that shows up on black and is never white, and the two teams in a game never get colours that look alike. Leafs vs Lightning: the Lightning switch to silver.
+- **Goals always stand out.** On the heat map and shot map, a goal is now a gold spark with a black ring around it, so it shows up on any team's colour.
+- **Pick your own.** Go to **Settings → Look → Team colours**, choose any NHL team (yours are listed first) and tap a colour. There's a live preview, and the widgets update straight away. "Back to the team's own colour" undoes it.
+
+## From 0.9.0 — your teams' games in Bitcal
 
 - **Every game of your NHL teams, on your calendar.** Sign in once under **Settings → Bitcal**, with the same 128bit account you use for Bitcal and 128bit Play. bitsports then adds a **"bitsports · NHL"** calendar to Bitcal with the whole regular season for every NHL team you follow: home games as "Oilers vs Hurricanes", away games as "Oilers @ Flames", with the arena, TV channels and your radio call. Playoff games are added once they're scheduled. Preseason games are left out.
 - **Keeps itself up to date.** Changed start times, postponements and final scores ("Oilers 6–5 Hurricanes · W (SO)") update every morning, after each of your games, whenever you open the app, and right away when you change teams. If you stop following a team, its games are removed. Any game you edit yourself in Bitcal is left alone.

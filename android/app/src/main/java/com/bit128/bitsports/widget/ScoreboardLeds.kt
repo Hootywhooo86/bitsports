@@ -6,6 +6,7 @@ import com.bit128.bitsports.ui.HockeyBoard
 import com.bit128.bitsports.ui.LedGrid
 import com.bit128.bitsports.ui.PixelFont
 import com.bit128.bitsports.ui.ScoreFormat
+import com.bit128.bitsports.ui.TeamInk
 
 /**
  * Tonight's NHL games as one 128-LED-wide arena board, a game per 10-LED row:
@@ -51,8 +52,9 @@ object ScoreboardLeds {
         g.fill(0, y, 2, 4, ac.first); g.fill(0, y + 4, 2, 3, ac.second)
         g.fill(70, y, 2, 4, hc.first); g.fill(70, y + 4, 2, 3, hc.second)
         // Over: the loser's code dims. Live: both stay lit.
-        val awayInk = if (game.state.isOver && a < h) HockeyBoard.DIM else HockeyBoard.led(ac)
-        val homeInk = if (game.state.isOver && h < a) HockeyBoard.DIM else HockeyBoard.led(hc)
+        val (aLed, hLed) = TeamInk.pair(game.away.abbrev, game.home.abbrev)
+        val awayInk = if (game.state.isOver && a < h) HockeyBoard.DIM else aLed
+        val homeInk = if (game.state.isOver && h < a) HockeyBoard.DIM else hLed
         g.text(game.away.abbrev.take(3), AWAY_X, y, awayInk)
         g.text(game.home.abbrev.take(3), HOME_X, y, homeInk)
         val mid = if (has) "$a-$h" else "@"

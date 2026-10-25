@@ -441,7 +441,7 @@ private fun ShotMapSection(g: Game, d: GameDetail, away: com.bit128.bitsports.nh
         Column(Modifier.padding(10.dp)) {
             if (heat) {
                 val grid = remember(shown) {
-                    HeatMap.draw(HeatMap.heat(shown, g.away.abbrev), HockeyBoard.colors(g.away.abbrev), HockeyBoard.colors(g.home.abbrev))
+                    HeatMap.draw(HeatMap.heat(shown, g.away.abbrev), TeamInk.pair(g.away.abbrev, g.home.abbrev))
                 }
                 PixelGrid(grid)
             } else {

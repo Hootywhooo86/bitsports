@@ -21,15 +21,14 @@ import kotlin.math.abs
 fun ShotMap(shots: List<ShotMark>, away: NhlTeam?, home: NhlTeam?) {
     val grid = remember(shots, away, home) {
         val g = PixelRink.copy()
-        val awayLed = away?.let { HockeyBoard.led(it.colors.first.toInt() to it.colors.second.toInt()) } ?: HockeyBoard.MUTED
-        val homeLed = home?.let { HockeyBoard.led(it.colors.first.toInt() to it.colors.second.toInt()) } ?: HockeyBoard.MUTED
+        val (awayLed, homeLed) = TeamInk.pair(away?.abbrev ?: "", home?.abbrev ?: "")
         for (s in shots.sortedBy { it.isGoal }) { // goals on top
             val right = s.teamAbbrev == away?.abbrev
             val x = if (right) abs(s.x.toFloat()) else -abs(s.x.toFloat())
             // Mirror y with x so a shot from the left circle stays on the left circle.
             val y = if ((s.x < 0) == right) -s.y.toFloat() else s.y.toFloat()
             val (cx, cy) = PixelRink.at(x, y)
-            if (s.isGoal) g.fill(cx - 1, cy - 1, 3, 3, HockeyBoard.WHITE)
+            if (s.isGoal) HeatMap.goalMark(g, cx, cy, if (right) awayLed else homeLed)
             else g.fill(cx, cy, 2, 2, if (right) awayLed else homeLed)
         }
         g

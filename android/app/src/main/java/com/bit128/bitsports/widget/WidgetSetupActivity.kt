@@ -148,7 +148,7 @@ private fun BoardPreview(cfg: WidgetConfig, followed: List<String>) {
         LedBitmaps.render(
             HeatMap.draw(
                 HeatMap.heat(sample, awayAbbrev = mine, onlyTeam = if (cfg.heat == "mine") mine else null),
-                HockeyBoard.colors(mine), HockeyBoard.colors(other),
+                com.bit128.bitsports.ui.TeamInk.pair(mine, other),
             ),
             cell = 5, dots = cfg.board != "solid",
         )

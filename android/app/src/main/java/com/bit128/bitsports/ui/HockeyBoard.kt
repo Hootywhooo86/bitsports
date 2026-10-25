@@ -53,6 +53,9 @@ object HockeyBoard {
         /** 0..1 through the current period, or null when there's no clock running. */
         val progress: Float?,
         val accent: Int = WHITE,
+        /** NHL: the team's LED colour from [TeamInk]; null works it out from the colours (other sports). */
+        val awayInk: Int? = null,
+        val homeInk: Int? = null,
     )
 
     /** For an NHL game. [records] (away, home) fill the sub line before puck drop. */
@@ -77,6 +80,7 @@ object HockeyBoard {
         return Input(
             away = g.away.abbrev, awayColors = colors(g.away.abbrev),
             home = g.home.abbrev, homeColors = colors(g.home.abbrev),
+            awayInk = TeamInk.pair(g.away.abbrev, g.home.abbrev).first, homeInk = TeamInk.pair(g.away.abbrev, g.home.abbrev).second,
             awayScore = g.away.score.takeIf { has }, homeScore = g.home.score.takeIf { has },
             clock = clockText(g),
             clockColor = if (g.state.isLive && c?.inIntermission != true) LIVE else MUTED,
@@ -118,8 +122,8 @@ object HockeyBoard {
         val hw = PixelFont.width(h)
         val awayLead = (i.awayScore ?: 0) >= (i.homeScore ?: 0)
         val homeLead = (i.homeScore ?: 0) >= (i.awayScore ?: 0)
-        g.text(a, 4, 2, led(i.awayColors))
-        g.textRight(h, COLS - 5, 2, led(i.homeColors))
+        g.text(a, 4, 2, i.awayInk ?: led(i.awayColors))
+        g.textRight(h, COLS - 5, 2, i.homeInk ?: led(i.homeColors))
         g.fill(4, 10, aw, 1, i.awayColors.first); g.fill(4, 11, aw, 1, i.awayColors.second)
         g.fill(COLS - 4 - hw, 10, hw, 1, i.homeColors.first); g.fill(COLS - 4 - hw, 11, hw, 1, i.homeColors.second)
         i.awaySub?.let { g.text(it.take(6), 4, 14, MUTED) }

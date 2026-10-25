@@ -7,8 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HeatMapTest {
-    private val oilers = 0xFF041E42.toInt() to 0xFFFC4C02.toInt()
-    private val flames = 0xFFC8102E.toInt() to 0xFFF1BE48.toInt()
+    private val inks = TeamInk.pair("EDM", "CGY")
 
     @Test fun eachTeamHeatsItsOwnEnd() {
         val shots = listOf(ShotMark("EDM", 80, 0, false, 1, null), ShotMark("CGY", -80, 0, false, 1, null))
@@ -25,12 +24,15 @@ class HeatMapTest {
         for (y in 0 until PixelRink.H) for (x in PixelRink.W / 2 until PixelRink.W) assertEquals(0f, h.away[y * PixelRink.W + x])
     }
 
-    @Test fun goalsSparkWhiteAndTheHottestSpotIsBanded() {
+    @Test fun goalsSparkGoldInABlackRingAndTheHottestSpotIsBanded() {
         val shots = List(6) { ShotMark("EDM", 82, 2, it == 0, 1, null) }
-        val g = HeatMap.draw(HeatMap.heat(shots, "EDM"), oilers, flames)
-        val (cx, cy) = PixelRink.at(-82f, 2f)
+        val heat = HeatMap.heat(shots, "EDM")
+        val g = HeatMap.draw(heat, inks)
+        val (cx, cy) = heat.goals.single()
         assertEquals(HockeyBoard.WHITE, g[cx, cy])
-        assertNotEquals(PixelRink.ICE, g[cx + 4, cy]) // heat around it
+        assertEquals(HeatMap.GOAL, g[cx + 2, cy])
+        assertEquals(PixelRink.OUTSIDE, g[cx + 3, cy]) // ringed in black
+        assertNotEquals(PixelRink.ICE, g[cx + 5, cy]) // heat around it
         assertEquals(5, HeatMap.level(1f, 1f))
         assertEquals(0, HeatMap.level(0.05f, 1f))
     }
@@ -39,5 +41,16 @@ class HeatMapTest {
         val shots = listOf(ShotMark("EDM", 80, 0, false, 1, null), ShotMark("CGY", -80, 0, false, 1, null))
         val h = HeatMap.heat(shots, "EDM", onlyTeam = "EDM")
         assertEquals(0f, h.home.maxOrNull())
+    }
+
+    /** The Leafs used to heat the ice white, and their white goal sparks disappeared in it. */
+    @Test fun leafsGoalsStandOutOnTheirOwnHeat() {
+        val shots = List(8) { ShotMark("TOR", 82, 2, it == 0, 1, null) }
+        val heat = HeatMap.heat(shots, "TOR")
+        val g = HeatMap.draw(heat, TeamInk.pair("TOR", "TBL"))
+        val (cx, cy) = heat.goals.single()
+        assertEquals(HockeyBoard.WHITE, g[cx, cy])
+        assertTrue(!TeamInk.alike(g[cx + 5, cy], HeatMap.GOAL))
+        assertEquals(PixelRink.OUTSIDE, g[cx, cy - 3])
     }
 }
