@@ -1,4 +1,12 @@
-## bitsports 0.9.1 — team colours you can see, and pick
+## bitsports 0.9.2 — 880 CHED plays right in the app
+
+- **Listen live now plays in bitsports.** On an Oilers game, tap **♪ Listen live** and 880 CHED starts playing. It's the same live stream the play button on 880 CHED's website uses, with no website in between. Tap again to stop.
+- **Keeps playing with the screen off.** Play, pause and stop are on your lock screen, in the notification shade and through Bluetooth or car controls. A bar above the tabs shows what's playing, with pause and stop, wherever you are in the app.
+- **From the mini scoreboard too.** The live game notification's **Listen live** button now starts the radio straight from the shade, without opening anything.
+- **Handles the real world.** If the connection drops (lift, tunnel, Wi-Fi to data) it reconnects on its own. A phone call pauses it and it picks back up live after. Unplugging headphones stops it, so it doesn't suddenly play out loud.
+- **Other teams:** paste your station's stream link in **Settings → Goals + alerts → Radio** and it plays in the app as well. A web page link still opens in the browser.
+
+## From 0.9.1 — team colours you can see, and pick
 
 - **Fixed: some teams were white on white.** The boards, heat maps, alerts and widgets used each team's brightest colour, so the Leafs, Lightning, Red Wings and Jets came out white and their goals disappeared into their own shots. Every team now has an LED colour that shows up on black and is never white, and the two teams in a game never get colours that look alike. Leafs vs Lightning: the Lightning switch to silver.
 - **Goals always stand out.** On the heat map and shot map, a goal is now a gold spark with a black ring around it, so it shows up on any team's colour.

@@ -7,6 +7,8 @@
     <!-- Watching a followed game while the app is closed (the mini scoreboard). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Exact alarms start the live watcher 15 minutes before puck drop; they're the only way
          Android 12+ lets an app start a foreground service from the background. Android 14 turns
          SCHEDULE_EXACT_ALARM off for new installs, so 13+ uses USE_EXACT_ALARM, which is granted at
@@ -74,6 +76,11 @@
             android:name=".alerts.GameWatchService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <service
+            android:name=".radio.RadioService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <receiver
             android:name=".alerts.AlertScheduler$AlarmReceiver"

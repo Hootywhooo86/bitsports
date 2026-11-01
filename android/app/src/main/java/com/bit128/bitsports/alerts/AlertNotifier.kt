@@ -274,8 +274,12 @@ object AlertNotifier {
                 val mine = AlertScheduler.followedAbbrevs(context).firstOrNull { it == game.away.abbrev || it == game.home.abbrev }
                 if (mine != null && !game.state.isOver) {
                     val station = com.bit128.bitsports.nhl.NhlRadio.forTeam(mine, prefs.radioUrl)
-                    addAction(0, "Listen live", PendingIntent.getActivity(
-                        context, ("radio" + game.id).hashCode(), Intent(Intent.ACTION_VIEW, Uri.parse(station.url)),
+                    val request = ("radio" + game.id).hashCode()
+                    // A station with a stream plays straight from the shade; the rest open their page.
+                    addAction(0, "Listen live", station.stream?.let {
+                        com.bit128.bitsports.radio.RadioService.playPending(context, station.name, it, mine, request)
+                    } ?: PendingIntent.getActivity(
+                        context, request, Intent(Intent.ACTION_VIEW, Uri.parse(station.url)),
                         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
                     ))
                 }

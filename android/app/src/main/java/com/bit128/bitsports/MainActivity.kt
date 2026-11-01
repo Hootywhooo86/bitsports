@@ -120,6 +120,7 @@ fun AppShell(vm: BitsportsViewModel) {
                 Tab.SETTINGS -> SettingsTab(vm)
             }
         }
+        NowPlaying()
         BottomNav(vm)
     }
 }

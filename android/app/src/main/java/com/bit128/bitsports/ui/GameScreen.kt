@@ -38,6 +38,7 @@ import com.bit128.bitsports.nhl.GameDetail
 import com.bit128.bitsports.nhl.GameExtras
 import com.bit128.bitsports.nhl.GoalEvent
 import com.bit128.bitsports.nhl.NhlRadio
+import com.bit128.bitsports.radio.RadioService
 import com.bit128.bitsports.nhl.NhlTeams
 import com.bit128.bitsports.nhl.OnIce
 import com.bit128.bitsports.nhl.PlayText
@@ -141,27 +142,47 @@ private fun TeamBlock(abbrev: String, t: TeamExtras?, modifier: Modifier) {
 
 /**
  * Listen live to the radio call: your team's station first (or the station you set in Settings),
- * else both teams'. Opens the broadcaster's own player, which keeps playing with the screen off.
+ * else both teams'. Stations with a stream (880 CHED) play right here, with the screen off too;
+ * the rest open the broadcaster's own page.
  */
 @Composable
 private fun ListenButtons(g: Game, followed: Set<String>, custom: String) {
     if (g.state.isOver) return
     val ctx = LocalContext.current
+    val radio by RadioService.state.collectAsState()
     val mine = listOf(g.away.abbrev, g.home.abbrev).filter { it in followed }
     val teams = mine.ifEmpty { listOf(g.away.abbrev, g.home.abbrev) }
+    val accent = Color(LocalUi.current.accent)
     Spacer(Modifier.height(8.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         teams.forEach { abbrev ->
             val station = NhlRadio.forTeam(abbrev, if (abbrev in mine) custom else null)
+            val stream = station.stream
+            val on = stream != null && radio.url == stream && radio.status != RadioService.Status.IDLE
+            val sounding = on && (radio.status == RadioService.Status.PLAYING || radio.status == RadioService.Status.CONNECTING)
+            val label = when {
+                !on -> "\u266A Listen live \u00B7 $abbrev"
+                radio.status == RadioService.Status.CONNECTING -> "Connecting\u2026"
+                radio.status == RadioService.Status.FAILED -> "\u21BB Try again \u00B7 $abbrev"
+                radio.status == RadioService.Status.PAUSED -> "\u25B6 Play \u00B7 $abbrev"
+                else -> "\u25A0 Stop \u00B7 $abbrev"
+            }
+            val name = if (station.official) station.name else if (abbrev in mine && custom.isNotBlank()) "Your station" else "Find the radio call"
             OutlinedButton(
-                onClick = { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(station.url))) },
-                border = BorderStroke(1.dp, Line2), shape = RoundedCornerShape(11.dp),
+                onClick = {
+                    when {
+                        stream == null -> ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(station.url)))
+                        sounding -> RadioService.stop(ctx)
+                        else -> RadioService.play(ctx, station.name, stream, abbrev)
+                    }
+                },
+                border = BorderStroke(1.dp, if (on) accent else Line2), shape = RoundedCornerShape(11.dp),
                 modifier = Modifier.weight(1f).heightIn(min = 48.dp),
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("♪ Listen live · $abbrev", color = TextInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    Text(if (station.official) station.name else if (abbrev in mine && custom.isNotBlank()) "Your station" else "Find the radio call",
-                        color = Muted, fontSize = 11.sp)
+                    Text(label, color = TextInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(if (on && radio.status == RadioService.Status.PLAYING) "$name \u00B7 LIVE" else name,
+                        color = if (on) accent else Muted, fontSize = 11.sp)
                 }
             }
         }

@@ -122,7 +122,7 @@ fun SettingsTab(vm: BitsportsViewModel) {
                         modifier = Modifier.fillMaxWidth().height(44.dp),
                     ) { Text("Preview", color = TextInk, fontWeight = FontWeight.SemiBold) }
                 }
-                Option("Radio", "Listen live on the game screen and the mini scoreboard opens your team's radio call. Oilers: 880 CHED. Other teams: a TuneIn search, or paste your station's listen-live link here.") {
+                Option("Radio", "Listen live on the game screen and the mini scoreboard plays your team's radio call right in bitsports. Oilers: 880 CHED. Other teams: paste your station's stream link here (it plays in the app) or its listen-live page (opens in the browser); otherwise a TuneIn search.") {
                     var link by remember(ui.radioUrl) { mutableStateOf(ui.radioUrl) }
                     OutlinedTextField(
                         value = link, onValueChange = { link = it; vm.updateUi(ui.copy(radioUrl = it.trim())) },
