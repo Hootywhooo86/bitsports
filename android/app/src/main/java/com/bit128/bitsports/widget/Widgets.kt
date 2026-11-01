@@ -7,6 +7,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
@@ -21,8 +22,10 @@ import com.bit128.bitsports.nhl.DirectNhlSource
 import com.bit128.bitsports.nhl.Game
 import com.bit128.bitsports.nhl.GameAnalysis
 import com.bit128.bitsports.nhl.GameDetail
+import com.bit128.bitsports.nhl.NhlRadio
 import com.bit128.bitsports.nhl.NhlTeams
 import com.bit128.bitsports.nhl.Strengths
+import com.bit128.bitsports.radio.RadioService
 import com.bit128.bitsports.ui.HeatMap
 import com.bit128.bitsports.ui.HockeyBoard
 import com.bit128.bitsports.ui.ScoreFormat
@@ -109,6 +112,43 @@ object Widgets {
                 pending?.finish()
             }
         }
+    }
+
+    /** Redraw from what's already here (the radio started or stopped): no network. */
+    fun redraw(context: Context) {
+        if (!any(context)) return
+        drawAll(context.applicationContext, null)
+    }
+
+    /**
+     * Under the score: your team's radio call, playing in bitsports from one tap. Shows from
+     * before puck drop until the final; tapped while playing, it stops.
+     */
+    private fun radioButton(context: Context, v: RemoteViews, team: String?, g: Game?) {
+        if (team == null || g == null || g.state.isOver || (g.away.abbrev != team && g.home.abbrev != team)) {
+            v.setViewVisibility(R.id.radio, View.GONE)
+            return
+        }
+        val station = NhlRadio.forTeam(team, PrefsStore(context).load().radioUrl)
+        val stream = station.stream
+        val radio = RadioService.state.value
+        val on = stream != null && radio.url == stream && radio.status != RadioService.Status.IDLE
+        val name = if (station.official) station.name.uppercase() else "RADIO"
+        val request = ("widget-radio" + team).hashCode()
+        v.setViewVisibility(R.id.radio, View.VISIBLE)
+        v.setTextViewText(R.id.radio, when {
+            !on -> "♪ LISTEN LIVE · $name"
+            radio.status == RadioService.Status.CONNECTING -> "CONNECTING… · $name"
+            radio.status == RadioService.Status.PLAYING -> "■ STOP · $name"
+            radio.status == RadioService.Status.FAILED -> "↻ TRY AGAIN · $name"
+            else -> "▶ PLAY · $name"
+        })
+        v.setTextColor(R.id.radio, if (on && radio.status == RadioService.Status.PLAYING) LIVE_RED else INK)
+        v.setOnClickPendingIntent(R.id.radio, when {
+            stream == null -> PendingIntent.getActivity(context, request, Intent(Intent.ACTION_VIEW, Uri.parse(station.url)), PendingIntent.FLAG_IMMUTABLE)
+            on && (radio.status == RadioService.Status.PLAYING || radio.status == RadioService.Status.CONNECTING) -> RadioService.stopPending(context, request)
+            else -> RadioService.playPending(context, station.name, stream, team, request)
+        })
     }
 
     /** From the app's scoreboard poll: no network here, just redraw. */
@@ -260,6 +300,7 @@ object Widgets {
                 v.setTextViewText(R.id.detail, clockLine(g).ifEmpty { AlertCopy.nick(team) + " vs " + AlertCopy.nick(opp) })
             }
         }
+        radioButton(context, v, team, g)
         return v
     }
 
@@ -358,6 +399,7 @@ object Widgets {
         val heat = HeatMap.heat(shots, awayAbbrev ?: "", only)
         val grid = HeatMap.draw(heat, com.bit128.bitsports.ui.TeamInk.pair(awayAbbrev ?: "", homeAbbrev ?: ""))
         v.setImageViewBitmap(R.id.board, LedBitmaps.render(grid, cell = 5, dots = cfg.board != "solid"))
+        radioButton(context, v, team, g)
         return v
     }
 }

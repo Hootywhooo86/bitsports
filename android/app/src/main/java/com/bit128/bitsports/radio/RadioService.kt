@@ -25,6 +25,7 @@ import android.os.PowerManager
 import com.bit128.bitsports.MainActivity
 import com.bit128.bitsports.R
 import com.bit128.bitsports.alerts.AlertLog
+import com.bit128.bitsports.widget.Widgets
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -67,6 +68,11 @@ class RadioService : Service() {
             if (_state.value.status == Status.IDLE) return
             context.startService(Intent(context, RadioService::class.java).setAction(ACTION_TOGGLE))
         }
+
+        /** For a widget button: stops the radio. */
+        fun stopPending(context: Context, request: Int): PendingIntent =
+            PendingIntent.getService(context, request, Intent(context, RadioService::class.java).setAction(ACTION_STOP),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
         /** For a notification button: plays from the shade without opening the app. */
         fun playPending(context: Context, station: String, url: String, team: String?, request: Int): PendingIntent =
@@ -193,6 +199,7 @@ class RadioService : Service() {
 
     private fun set(status: Status) {
         _state.value = _state.value.copy(status = status)
+        Widgets.redraw(this) // the widget's Listen live button follows along
         session?.setPlaybackState(PlaybackState.Builder()
             .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_STOP)
             .setState(when (status) {
@@ -255,6 +262,7 @@ class RadioService : Service() {
         wifi?.release(); wifi = null
         session?.run { isActive = false; release() }; session = null
         _state.value = State()
+        Widgets.redraw(this)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }

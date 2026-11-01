@@ -1,4 +1,10 @@
-## bitsports 0.9.2 — 880 CHED plays right in the app
+## bitsports 0.9.3 — Listen live on the widget
+
+- **A Listen live button on the widgets, right under the score.** The team score widget and the score + heat map widget now show **♪ LISTEN LIVE · 880 CHED** from before puck drop until the final. One tap starts the radio without opening the app.
+- **It follows along.** While the radio plays, the button turns red and reads **■ STOP**; tap it to stop. It shows CONNECTING… while the stream starts, and TRY AGAIN if the station can't be reached. The button goes away after the final.
+- Uses your team's station: 880 CHED for the Oilers, or the stream you set in **Settings → Goals + alerts → Radio**.
+
+## From 0.9.2 — 880 CHED plays right in the app
 
 - **Listen live now plays in bitsports.** On an Oilers game, tap **♪ Listen live** and 880 CHED starts playing. It's the same live stream the play button on 880 CHED's website uses, with no website in between. Tap again to stop.
 - **Keeps playing with the screen off.** Play, pause and stop are on your lock screen, in the notification shade and through Bluetooth or car controls. A bar above the tabs shows what's playing, with pause and stop, wherever you are in the app.
