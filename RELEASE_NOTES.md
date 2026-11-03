@@ -1,4 +1,17 @@
-## bitsports 0.9.4 — live betting odds
+## bitsports 0.9.5 — the WIN-O-METER
+
+The odds are now a 128-pixel LED board, like the rest of bitsports.
+
+- **WIN-O-METER** on the game screen:
+  - **Big win chances** for each team, in team colours. The leader is lit, the other is dimmed.
+  - **Tug of war:** a bar split between the two teams, with a white puck that slides toward whoever the odds favour, every 20 seconds during the game.
+  - **Momentum chart:** the whole game left to right. When the line rises above the middle, the away team's chances went up; below it, the home team's. **Gold dots mark every goal**, so you can see the odds jump when someone scores.
+  - The **LIVE ODDS** label blinks while the game is on. The price table (to win, puck line, total) is still underneath.
+- **On the widgets:** a mini LED strip under the score (`EDM 52 ▬▬▬●▬▬ 48 NJD`). The score + heat map widget also keeps the prices line.
+- The momentum chart keeps filling in with the app closed, as long as you have a bitsports widget on your home screen.
+- Fixed: the score + heat map widget wasn't showing the odds line from 0.9.4.
+
+## From 0.9.4 — live betting odds
 
 - **Odds on every NHL game,** from the NHL's own betting partner in Canada (FanDuel). The game screen has an odds card under the score and radio buttons:
   - **To win** (moneyline) for both teams, plus the chance that price implies, as a bar in team colours (EDM 39% ▬▬▬▬ 61% NJD).

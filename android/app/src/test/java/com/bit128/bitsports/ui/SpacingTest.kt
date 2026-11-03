@@ -53,6 +53,18 @@ class SpacingTest {
         assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
     }
 
+    @Test fun winOMeter() {
+        val history = List(300) { i ->
+            com.bit128.bitsports.nhl.OddsSample(i * 20_000L, 0.5f + 0.45f * kotlin.math.sin(i / 30f), i / 60, i / 90)
+        }
+        for ((a, h) in pairs) for (share in listOf(null, 0.01f, 0.2f, 0.5f, 0.77f, 0.99f)) for (hist in listOf(emptyList(), history.take(3), history)) {
+            val (ai, hi) = TeamInk.pair(a, h)
+            check("meter $a-$h $share ${hist.size}", OddsMeter.board(a, h, ai, hi, share, hist, live = true, frame = 0))
+            if (share != null) check("strip $a-$h $share", OddsMeter.strip(a, h, ai, hi, share))
+        }
+        assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
+    }
+
     @Test fun scoreboardWidget() {
         val games = allGames()
         for (chunk in games.chunked(8)) check("scoreboard", ScoreboardLeds.build(chunk, setOf("EDM", "CAR", "TBL"), HockeyBoard.WHITE, 8))

@@ -127,6 +127,8 @@ class BitsportsViewModel(
     var detailError by mutableStateOf<String?>(null)
     /** The open game's betting odds, refreshed with the play-by-play (~20s live). */
     var odds by mutableStateOf<com.bit128.bitsports.nhl.GameOdds?>(null)
+    /** How the open game's odds have moved, for the WIN-O-METER's momentum chart. */
+    var oddsHistory by mutableStateOf<List<com.bit128.bitsports.nhl.OddsSample>>(emptyList())
         private set
     private var detailJob: Job? = null
     private val seenGoals = HashMap<Long, Set<Int>>()
@@ -334,6 +336,7 @@ class BitsportsViewModel(
             detail = null
             extras = null
             odds = null
+            oddsHistory = com.bit128.bitsports.nhl.OddsHistory.get(appContext, id)
         }
         openGameId = id
         detailError = null
@@ -361,7 +364,12 @@ class BitsportsViewModel(
                 }
                 if (ui.showOdds && (live || tick % 4 == 0)) {
                     try {
-                        source.odds()[id]?.let { odds = it }
+                        source.odds()[id]?.let { o ->
+                            odds = o
+                            detail?.game?.takeIf { !it.state.isOver }?.let { g ->
+                                oddsHistory = com.bit128.bitsports.nhl.OddsHistory.record(appContext, g, o)
+                            }
+                        }
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                     }

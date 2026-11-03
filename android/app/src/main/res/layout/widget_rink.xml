@@ -75,6 +75,17 @@
             android:textSize="10sp" />
     </LinearLayout>
 
+    <!-- The WIN-O-METER strip: each side's chance, and the puck on the tug-of-war bar. -->
+    <ImageView
+        android:id="@+id/odds_strip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:adjustViewBounds="true"
+        android:contentDescription="Win chance from the betting odds"
+        android:scaleType="fitCenter"
+        android:visibility="gone" />
+
     <!-- Betting odds, refreshed with the score (~20s live). -->
     <TextView
         android:id="@+id/odds"

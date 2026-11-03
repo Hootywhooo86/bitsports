@@ -25,6 +25,8 @@ import com.bit128.bitsports.nhl.GameDetail
 import com.bit128.bitsports.nhl.GameOdds
 import com.bit128.bitsports.nhl.NhlOddsParser
 import com.bit128.bitsports.nhl.NhlRadio
+import com.bit128.bitsports.nhl.OddsHistory
+import com.bit128.bitsports.ui.OddsMeter
 import com.bit128.bitsports.nhl.NhlTeams
 import com.bit128.bitsports.nhl.Strengths
 import com.bit128.bitsports.radio.RadioService
@@ -107,7 +109,11 @@ object Widgets {
                     return@launch
                 }
                 if (PrefsStore(app).load().showOdds && games.any { !it.state.isOver }) {
-                    runCatching { source.odds() }.getOrNull()?.let { odds = it }
+                    runCatching { source.odds() }.getOrNull()?.let { o ->
+                        odds = o
+                        // Keep the momentum chart going with the app closed.
+                        games.filter { it.state.isLive }.forEach { g -> o[g.id]?.let { OddsHistory.record(app, g, it) } }
+                    }
                 }
                 val prefs = WidgetPrefs(app)
                 ids(app, RinkWidget::class.java).toList().mapNotNull { prefs.teamFor(it)?.let { t -> gameFor(games, t) } }
@@ -159,12 +165,21 @@ object Widgets {
     }
 
     /** One line under the score: "ODDS EDM +134 · NJD -162 · O/U 6.5", until the final. */
-    private fun oddsLine(context: Context, v: RemoteViews, team: String?, g: Game?) {
+    private fun oddsLine(context: Context, v: RemoteViews, team: String?, g: Game?, text: Boolean = true) {
         val o = g?.let { odds[it.id] }
         if (g == null || o == null || g.state.isOver || !PrefsStore(context).load().showOdds) {
             v.setViewVisibility(R.id.odds, View.GONE)
+            v.setViewVisibility(R.id.odds_strip, View.GONE)
             return
         }
+        val share = OddsHistory.share(o)
+        if (share != null) {
+            val (aInk, hInk) = com.bit128.bitsports.ui.TeamInk.pair(g.away.abbrev, g.home.abbrev)
+            v.setViewVisibility(R.id.odds_strip, View.VISIBLE)
+            v.setImageViewBitmap(R.id.odds_strip, LedBitmaps.render(OddsMeter.strip(g.away.abbrev, g.home.abbrev, aInk, hInk, share), cell = 4))
+        } else v.setViewVisibility(R.id.odds_strip, View.GONE)
+        // The small team widget has room for the strip only; the wide one adds the prices.
+        if (!text && share != null) { v.setViewVisibility(R.id.odds, View.GONE); return }
         v.setViewVisibility(R.id.odds, View.VISIBLE)
         v.setTextViewText(R.id.odds, (if (g.state.isLive) "LIVE " else "ODDS ") + NhlOddsParser.line(o, g.away.abbrev, g.home.abbrev, team))
         v.setTextColor(R.id.odds, if (g.state.isLive) WARN else MUTED)
@@ -319,8 +334,7 @@ object Widgets {
                 v.setTextViewText(R.id.detail, clockLine(g).ifEmpty { AlertCopy.nick(team) + " vs " + AlertCopy.nick(opp) })
             }
         }
-        oddsLine(context, v, team, g)
-        oddsLine(context, v, team, g)
+        oddsLine(context, v, team, g, text = false)
         radioButton(context, v, team, g)
         return v
     }
@@ -420,6 +434,7 @@ object Widgets {
         val heat = HeatMap.heat(shots, awayAbbrev ?: "", only)
         val grid = HeatMap.draw(heat, com.bit128.bitsports.ui.TeamInk.pair(awayAbbrev ?: "", homeAbbrev ?: ""))
         v.setImageViewBitmap(R.id.board, LedBitmaps.render(grid, cell = 5, dots = cfg.board != "solid"))
+        oddsLine(context, v, team, g)
         radioButton(context, v, team, g)
         return v
     }

@@ -15,6 +15,9 @@ import com.bit128.bitsports.*
 import com.bit128.bitsports.nhl.Game
 import com.bit128.bitsports.nhl.GameOdds
 import com.bit128.bitsports.nhl.NhlOddsParser
+import com.bit128.bitsports.nhl.OddsHistory
+import com.bit128.bitsports.nhl.OddsSample
+import androidx.compose.runtime.remember
 import com.bit128.bitsports.nhl.TeamOdds
 import java.time.Duration
 import java.time.Instant
@@ -25,7 +28,7 @@ import java.time.Instant
  * about every 20 seconds while the game is on.
  */
 @Composable
-internal fun OddsCard(g: Game, o: GameOdds, now: Instant) {
+internal fun OddsCard(g: Game, o: GameOdds, history: List<OddsSample>, now: Instant) {
     val (awayInk, homeInk) = TeamInk.pair(g.away.abbrev, g.home.abbrev)
     Spacer(Modifier.height(12.dp))
     CardBox {
@@ -36,24 +39,19 @@ internal fun OddsCard(g: Game, o: GameOdds, now: Instant) {
                 Text(listOfNotNull(o.partner, o.updated?.let { ago(it, now) }).joinToString(" · "), color = Muted, fontSize = 12.sp)
             }
             Spacer(Modifier.height(12.dp))
-            // The chance each side wins as the market prices it, the book's margin taken out.
-            val a = o.away.moneyLine?.let(NhlOddsParser::implied)
-            val h = o.home.moneyLine?.let(NhlOddsParser::implied)
-            if (a != null && h != null) {
-                val share = a / (a + h)
-                Row(Modifier.fillMaxWidth()) {
-                    Text("${g.away.abbrev} ${(share * 100).toInt()}%", color = Color(awayInk), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.weight(1f))
-                    Text("${100 - (share * 100).toInt()}% ${g.home.abbrev}", color = Color(homeInk), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                }
-                Spacer(Modifier.height(6.dp))
-                Row(Modifier.fillMaxWidth().height(8.dp)) {
-                    if (share > 0f) Box(Modifier.weight(share).fillMaxHeight().background(Color(awayInk)))
-                    Spacer(Modifier.width(2.dp))
-                    if (share < 1f) Box(Modifier.weight(1f - share).fillMaxHeight().background(Color(homeInk)))
-                }
-                Spacer(Modifier.height(14.dp))
+            // The WIN-O-METER: the chance each side wins as the market prices it, and how it's swung.
+            val share = OddsHistory.share(o)
+            val frame = (now.epochSecond / 5).toInt()
+            val board = remember(share, history, g.state.isLive, frame, awayInk, homeInk) {
+                OddsMeter.board(g.away.abbrev, g.home.abbrev, awayInk, homeInk, share, history, g.state.isLive, frame)
             }
+            PixelGrid(board)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                if (history.size < 2) "Momentum fills in as the odds move during the game." else "Momentum: above the line ${g.away.abbrev}'s chances rose, below it ${g.home.abbrev}'s. Gold dots are goals.",
+                color = Dim, fontSize = 11.sp,
+            )
+            Spacer(Modifier.height(14.dp))
             Header()
             HorizontalDivider(color = Line)
             TeamRow(g.away.abbrev, o.away, Color(awayInk))
