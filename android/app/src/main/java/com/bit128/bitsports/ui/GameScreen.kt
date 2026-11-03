@@ -90,6 +90,7 @@ fun GameScreen(vm: BitsportsViewModel, onBack: () -> Unit) {
             Spacer(Modifier.height(12.dp))
             WatchButton(game, vm.followedAbbrevs())
             ListenButtons(game, vm.followedAbbrevs(), vm.ui.radioUrl)
+            if (vm.ui.showOdds) vm.odds?.let { OddsCard(game, it, vm.now) }
             Spacer(Modifier.height(16.dp))
             Segmented(GameTab.entries.map { it.label }, tab.ordinal) { tab = GameTab.entries[it] }
             Spacer(Modifier.height(24.dp))

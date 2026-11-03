@@ -101,7 +101,10 @@ fun SettingsTab(vm: BitsportsViewModel) {
                 }
                 Option("Home page", null, divider = false) {
                     ToggleRow("News under your games", ui.showNews) { vm.updateUi(ui.copy(showNews = it)) }
-                    ToggleRow("Blinking LIVE marker", ui.blinkLive) { vm.updateUi(ui.copy(blinkLive = it)) }
+                    ToggleRow("Blinking LIVE marker", ui.blinkLive) { vm.updateUi(ui.copy(blinkLive = it)); }
+                    ToggleRow("Betting odds (game screen + widgets)", ui.showOdds) {
+                        vm.updateUi(ui.copy(showOdds = it)); com.bit128.bitsports.widget.Widgets.refresh(ctx)
+                    }
                 }
             }
         }

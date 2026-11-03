@@ -75,6 +75,19 @@
             android:textSize="10sp" />
     </LinearLayout>
 
+    <!-- Betting odds, refreshed with the score (~20s live). -->
+    <TextView
+        android:id="@+id/odds"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/silkscreen_regular"
+        android:maxLines="1"
+        android:text="ODDS EDM +134 · NJD -162 · O/U 6.5"
+        android:textColor="#8C8C8C"
+        android:textSize="9sp" />
+
     <!-- Listen live: plays your team's radio call right from the widget. -->
     <TextView
         android:id="@+id/radio"

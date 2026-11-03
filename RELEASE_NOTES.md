@@ -1,4 +1,14 @@
-## bitsports 0.9.3 — Listen live on the widget
+## bitsports 0.9.4 — live betting odds
+
+- **Odds on every NHL game,** from the NHL's own betting partner in Canada (FanDuel). The game screen has an odds card under the score and radio buttons:
+  - **To win** (moneyline) for both teams, plus the chance that price implies, as a bar in team colours (EDM 39% ▬▬▬▬ 61% NJD).
+  - **Puck line** (-1.5 / +1.5) and the **total** (over/under 6.5) with their prices.
+  - Which partner the odds are from, and how long ago they were last updated.
+- **Live during the game.** While a game is on, the odds refresh with the score, about every 20 seconds. The card says **LIVE ODDS**.
+- **On the widgets too,** right under the score: `LIVE EDM +134 · NJD -162 · O/U 6.5`, with your team first. The line goes away after the final.
+- Don't want them? Turn them off in **Settings → Look → Home page → Betting odds**.
+
+## From 0.9.3 — Listen live on the widget
 
 - **A Listen live button on the widgets, right under the score.** The team score widget and the score + heat map widget now show **♪ LISTEN LIVE · 880 CHED** from before puck drop until the final. One tap starts the radio without opening the app.
 - **It follows along.** While the radio plays, the button turns red and reads **■ STOP**; tap it to stop. It shows CONNECTING… while the stream starts, and TRY AGAIN if the station can't be reached. The button goes away after the final.

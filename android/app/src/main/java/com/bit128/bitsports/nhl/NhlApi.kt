@@ -21,6 +21,8 @@ interface NhlSource {
     suspend fun season(abbrev: String): List<ScheduleGame> = emptyList()
     suspend fun standings(): List<StandingRow> = emptyList()
     suspend fun leaders(): List<LeaderBoard> = emptyList()
+    /** Today's betting odds by game id (empty when the NHL lists none). */
+    suspend fun odds(): Map<Long, GameOdds> = emptyMap()
 }
 
 class DirectNhlSource(
@@ -58,6 +60,9 @@ class DirectNhlSource(
         if (skaters == null && goalies == null) throw IOException("NHL leaders unreachable")
         return NhlLeagueParser.leaders(skaters, goalies)
     }
+
+    // The NHL's betting partner for Canada (FanDuel): the market bitsports' users are in.
+    override suspend fun odds(): Map<Long, GameOdds> = NhlOddsParser.odds(get("$base/partner-game/CA/now"))
 
     override suspend fun season(abbrev: String): List<ScheduleGame> =
         NhlSeasonParser.season(get("$base/club-schedule-season/${abbrev.uppercase()}/now"))

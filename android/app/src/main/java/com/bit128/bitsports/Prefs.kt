@@ -26,6 +26,8 @@ data class UiPrefs(
     val alertFinal: Boolean = true,
     /** A listen-live link for your team's radio call, if you'd rather use your own. */
     val radioUrl: String = "",
+    /** Betting odds on the game screen and widgets. */
+    val showOdds: Boolean = true,
 )
 
 fun UiPrefs.alertPrefs() = AlertPrefs(
@@ -67,6 +69,7 @@ class PrefsStore(context: Context) {
             alertRecap = prefs.getBoolean("alertRecap", d.alertRecap),
             alertFinal = prefs.getBoolean("alertFinal", d.alertFinal),
             radioUrl = prefs.getString("radioUrl", d.radioUrl) ?: d.radioUrl,
+            showOdds = prefs.getBoolean("showOdds", d.showOdds),
         )
     }
 
@@ -88,6 +91,7 @@ class PrefsStore(context: Context) {
             .putBoolean("alertRecap", p.alertRecap)
             .putBoolean("alertFinal", p.alertFinal)
             .putString("radioUrl", p.radioUrl)
+            .putBoolean("showOdds", p.showOdds)
             .apply()
     }
 }

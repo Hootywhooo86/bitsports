@@ -22,6 +22,8 @@ import com.bit128.bitsports.nhl.DirectNhlSource
 import com.bit128.bitsports.nhl.Game
 import com.bit128.bitsports.nhl.GameAnalysis
 import com.bit128.bitsports.nhl.GameDetail
+import com.bit128.bitsports.nhl.GameOdds
+import com.bit128.bitsports.nhl.NhlOddsParser
 import com.bit128.bitsports.nhl.NhlRadio
 import com.bit128.bitsports.nhl.NhlTeams
 import com.bit128.bitsports.nhl.Strengths
@@ -77,6 +79,8 @@ object Widgets {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     /** Last play-by-play per game, so a scoreboard-only update can still redraw the board. */
     private val details = java.util.concurrent.ConcurrentHashMap<Long, GameDetail>()
+    /** Today's betting odds by game, from the last fetch. */
+    @Volatile private var odds: Map<Long, GameOdds> = emptyMap()
     /** When the NHL's next copy of the scoreboard is due, from the last fetch. */
     @Volatile private var freshInMs: Long? = null
 
@@ -101,6 +105,9 @@ object Widgets {
                     drawAll(app, null)
                     tickAt(app, System.currentTimeMillis() + RETRY_MS)
                     return@launch
+                }
+                if (PrefsStore(app).load().showOdds && games.any { !it.state.isOver }) {
+                    runCatching { source.odds() }.getOrNull()?.let { odds = it }
                 }
                 val prefs = WidgetPrefs(app)
                 ids(app, RinkWidget::class.java).toList().mapNotNull { prefs.teamFor(it)?.let { t -> gameFor(games, t) } }
@@ -149,6 +156,18 @@ object Widgets {
             on && (radio.status == RadioService.Status.PLAYING || radio.status == RadioService.Status.CONNECTING) -> RadioService.stopPending(context, request)
             else -> RadioService.playPending(context, station.name, stream, team, request)
         })
+    }
+
+    /** One line under the score: "ODDS EDM +134 · NJD -162 · O/U 6.5", until the final. */
+    private fun oddsLine(context: Context, v: RemoteViews, team: String?, g: Game?) {
+        val o = g?.let { odds[it.id] }
+        if (g == null || o == null || g.state.isOver || !PrefsStore(context).load().showOdds) {
+            v.setViewVisibility(R.id.odds, View.GONE)
+            return
+        }
+        v.setViewVisibility(R.id.odds, View.VISIBLE)
+        v.setTextViewText(R.id.odds, (if (g.state.isLive) "LIVE " else "ODDS ") + NhlOddsParser.line(o, g.away.abbrev, g.home.abbrev, team))
+        v.setTextColor(R.id.odds, if (g.state.isLive) WARN else MUTED)
     }
 
     /** From the app's scoreboard poll: no network here, just redraw. */
@@ -300,6 +319,8 @@ object Widgets {
                 v.setTextViewText(R.id.detail, clockLine(g).ifEmpty { AlertCopy.nick(team) + " vs " + AlertCopy.nick(opp) })
             }
         }
+        oddsLine(context, v, team, g)
+        oddsLine(context, v, team, g)
         radioButton(context, v, team, g)
         return v
     }
