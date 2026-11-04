@@ -23,11 +23,15 @@ interface NhlSource {
     suspend fun leaders(): List<LeaderBoard> = emptyList()
     /** Today's betting odds by game id (empty when the NHL lists none). */
     suspend fun odds(): Map<Long, GameOdds> = emptyMap()
+    /** Odds for [games]: the NHL's before puck drop, in-game ones for the live games among them. */
+    suspend fun oddsFor(games: List<Game>): Map<Long, GameOdds> = odds()
 }
 
 class DirectNhlSource(
     private val base: String = "https://api-web.nhle.com/v1",
     private val stats: String = "https://api.nhle.com/stats/rest/en",
+    private val espn: String = "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl",
+    private val espnCore: String = "https://sports.core.api.espn.com/v2/sports/hockey/leagues/nhl",
 ) : NhlSource {
     override suspend fun scoreboard(): List<Game> = scoreboardPaced().first
 
@@ -63,6 +67,26 @@ class DirectNhlSource(
 
     // The NHL's betting partner for Canada (FanDuel): the market bitsports' users are in.
     override suspend fun odds(): Map<Long, GameOdds> = NhlOddsParser.odds(get("$base/partner-game/CA/now"))
+
+    @Volatile private var espnIds: Map<Long, String> = emptyMap()
+
+    override suspend fun oddsFor(games: List<Game>): Map<Long, GameOdds> {
+        val out = HashMap(try { odds() } catch (e: IOException) { emptyMap() })
+        val live = games.filter { it.state.isLive }
+        if (live.isEmpty()) return out
+        if (live.any { it.id !in espnIds }) {
+            try { espnIds = espnIds + EspnOdds.eventIds(get("$espn/scoreboard"), live) } catch (e: IOException) { }
+        }
+        // ESPN's CDN can hold odds for minutes; a 15-second bucket keeps them as fresh as the play.
+        val bucket = System.currentTimeMillis() / 15_000
+        for (g in live) {
+            val id = espnIds[g.id] ?: continue
+            try {
+                EspnOdds.live(get("$espnCore/events/$id/competitions/$id/odds?lang=en&region=us&b=$bucket"), g.id)?.let { out[g.id] = it }
+            } catch (e: IOException) { }
+        }
+        return out
+    }
 
     override suspend fun season(abbrev: String): List<ScheduleGame> =
         NhlSeasonParser.season(get("$base/club-schedule-season/${abbrev.uppercase()}/now"))

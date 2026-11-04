@@ -57,7 +57,7 @@ internal fun OddsCard(g: Game, o: GameOdds, history: List<OddsSample>, now: Inst
             TeamRow(g.away.abbrev, o.away, Color(awayInk))
             TeamRow(g.home.abbrev, o.home, Color(homeInk))
             Spacer(Modifier.height(10.dp))
-            Text("19+. Odds from the NHL's betting partner, for information. Please play responsibly.", color = Dim, fontSize = 11.sp)
+            Text("19+. Before puck drop: the NHL's betting partner (FanDuel). During the game: DraftKings live odds. For information only; please play responsibly.", color = Dim, fontSize = 11.sp)
         }
     }
 }

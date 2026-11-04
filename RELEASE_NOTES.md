@@ -1,4 +1,9 @@
-## bitsports 0.9.5 — the WIN-O-METER
+## bitsports 0.9.6 — odds that move with the play
+
+- **Faster live odds.** During tonight's games I found that the NHL's own odds feed only refreshes every 5 minutes, and its scoreboard drops odds once the puck drops. While a game is live, bitsports now uses **DraftKings' in-game odds** (through ESPN), which move within about a minute of the play. The app and widgets check every 20 seconds. Before puck drop it still shows the NHL's partner odds (FanDuel).
+- The odds card shows which one you're seeing: "FanDuel" before the game, "DraftKings live" during it.
+
+## From 0.9.5 — the WIN-O-METER
 
 The odds are now a 128-pixel LED board, like the rest of bitsports.
 

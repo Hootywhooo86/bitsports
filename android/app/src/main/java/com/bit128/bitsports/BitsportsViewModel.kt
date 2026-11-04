@@ -364,7 +364,7 @@ class BitsportsViewModel(
                 }
                 if (ui.showOdds && (live || tick % 4 == 0)) {
                     try {
-                        source.odds()[id]?.let { o ->
+                        source.oddsFor(listOfNotNull(detail?.game))[id]?.let { o ->
                             odds = o
                             detail?.game?.takeIf { !it.state.isOver }?.let { g ->
                                 oddsHistory = com.bit128.bitsports.nhl.OddsHistory.record(appContext, g, o)

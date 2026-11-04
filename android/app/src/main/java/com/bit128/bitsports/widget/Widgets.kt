@@ -109,7 +109,10 @@ object Widgets {
                     return@launch
                 }
                 if (PrefsStore(app).load().showOdds && games.any { !it.state.isOver }) {
-                    runCatching { source.odds() }.getOrNull()?.let { o ->
+                    // Only the games a widget shows need in-game odds.
+                    val shown = (ids(app, TeamWidget::class.java) + ids(app, RinkWidget::class.java)).toList()
+                        .mapNotNull { WidgetPrefs(app).teamFor(it)?.let { t -> gameFor(games, t) } }.distinctBy { it.id }
+                    runCatching { source.oddsFor(shown) }.getOrNull()?.let { o ->
                         odds = o
                         // Keep the momentum chart going with the app closed.
                         games.filter { it.state.isLive }.forEach { g -> o[g.id]?.let { OddsHistory.record(app, g, it) } }
