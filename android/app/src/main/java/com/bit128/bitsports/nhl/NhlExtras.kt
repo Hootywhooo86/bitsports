@@ -12,6 +12,8 @@ import java.util.Locale
 data class GameExtras(
     val venue: String? = null,
     val tv: List<String> = emptyList(),
+    /** Every TV / streaming broadcast with its country (CA, US), for the Watch button. */
+    val broadcasts: List<com.bit128.bitsports.nhl.Broadcast> = emptyList(),
     val away: TeamExtras = TeamExtras(),
     val home: TeamExtras = TeamExtras(),
     val seriesAwayWins: Int? = null,
@@ -109,6 +111,9 @@ object NhlExtrasParser {
         return GameExtras(
             venue = l?.optJSONObject("venue")?.optString("default")?.ifBlank { null },
             tv = l?.optJSONArray("tvBroadcasts").objects().map { it.optString("network") }.filter { it.isNotBlank() }.distinct(),
+            broadcasts = l?.optJSONArray("tvBroadcasts").objects().mapNotNull { b ->
+                b.optString("network").trim().ifBlank { null }?.let { Broadcast(it, b.optString("countryCode"), b.optString("market")) }
+            }.distinctBy { it.network to it.country },
             away = team("awayTeam", awayId),
             home = team("homeTeam", homeId),
             seriesAwayWins = wins?.optInt("awayTeamWins"),

@@ -44,12 +44,14 @@ import com.bit128.bitsports.ui.PixelIcon
 class MainActivity : ComponentActivity() {
     /** A game to open, from a notification tap. The screen picks it up once the view model exists. */
     private var pendingGame by mutableStateOf<Long?>(null)
+    private var pendingClip by mutableStateOf<Int?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AlertNotifier.ensureChannels(applicationContext)
         AlertScheduler.refresh(applicationContext)
         pendingGame = gameFrom(intent)
+        pendingClip = clipFrom(intent)
         val store = TeamsStore(applicationContext)
         val prefsStore = PrefsStore(applicationContext)
         setContent {
@@ -59,6 +61,7 @@ class MainActivity : ComponentActivity() {
                     BitsportsViewModel(store, prefsStore, applicationContext) as T
             })
             LaunchedEffect(pendingGame) {
+                pendingClip?.let { vm.pendingClip = it; pendingClip = null }
                 pendingGame?.let { vm.openGame(it); pendingGame = null }
             }
             // Feeds poll only while bitsports is on screen, and refresh the moment it comes back.
@@ -88,6 +91,10 @@ class MainActivity : ComponentActivity() {
                             AppShell(vm)
                         }
                         vm.finalMoment?.let { f -> FinalMoment(f, onDone = { vm.finalMoment = null }) }
+                        vm.clipReel?.let { r ->
+                            BackHandler { vm.clipReel = null }
+                            com.bit128.bitsports.ui.ClipPlayer(r, ui.goalStyle, onIndex = { vm.clipReel = r.copy(index = it) }, onClose = { vm.clipReel = null })
+                        }
                         vm.goalMoment?.let { g ->
                             GoalMoment(g, ui.goalStyle, ui.goalSound, vm.goalSpecial, vm.goalScoredHome, onDone = { vm.goalMoment = null })
                         }
@@ -100,7 +107,10 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         gameFrom(intent)?.let { pendingGame = it }
+        clipFrom(intent)?.let { pendingClip = it }
     }
+
+    private fun clipFrom(intent: Intent?): Int? = intent?.getIntExtra(AlertNotifier.EXTRA_CLIP, -1)?.takeIf { it > 0 }
 
     private fun gameFrom(intent: Intent?): Long? =
         intent?.getLongExtra(AlertNotifier.EXTRA_GAME, -1L)?.takeIf { it > 0 }

@@ -141,6 +141,18 @@ class BitsportsViewModel(
     var boardFlash by mutableStateOf<com.bit128.bitsports.ui.HockeyBoard.Flash?>(null)
     /** The final-horn moment, when one of your games ends while you're watching it. */
     var finalMoment by mutableStateOf<com.bit128.bitsports.ui.FinalMoments.Info?>(null)
+    /** A goal clip asked for from a notification: plays once its game has loaded. */
+    var pendingClip: Int? = null
+
+    /** Goal clips playing in the app, with their LED overlays. */
+    var clipReel by mutableStateOf<com.bit128.bitsports.ui.ClipReel?>(null)
+
+    /** Plays [goal]'s clip, then the rest of the game's goals that have one. */
+    fun playClips(game: com.bit128.bitsports.nhl.Game, goals: List<GoalEvent>, goal: GoalEvent) {
+        val withClips = goals.filter { it.clipUrl != null }
+        val i = withClips.indexOfFirst { it.eventId == goal.eventId }
+        if (i >= 0) clipReel = com.bit128.bitsports.ui.ClipReel(game, withClips, i)
+    }
     var goalScoredHome by mutableStateOf(false)
 
     val watchStore = WatchStore(appContext)
@@ -379,6 +391,10 @@ class BitsportsViewModel(
                         finalMoment = com.bit128.bitsports.ui.FinalMoments.info(d, cup)
                     }
                     detail = d
+                    pendingClip?.let { e ->
+                        val goals = GameAnalysis.goals(d)
+                        goals.firstOrNull { it.eventId == e && it.clipUrl != null }?.let { playClips(d.game, goals, it); pendingClip = null }
+                    }
                     detailError = null
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e

@@ -62,6 +62,15 @@ class SpacingTest {
         assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
     }
 
+    @Test fun clipOverlays() {
+        for (g in allGames().filterIndexed { i, _ -> i % 7 == 0 }) for (n in names) for (st in Strength.values()) for (assists in 0..2) {
+            val goal = GoalEvent(g.id, 1, g.home.abbrev, n, 47, names.take(assists).map { it to 3 }, st, "wrist", null, 4, "OT", "11:19", 10, 11, null)
+            check("bug ${g.away.abbrev}-${g.home.abbrev}", ClipOverlays.bug(g, goal))
+            for (f in 0..8) check("lower $n $st $assists f$f", ClipOverlays.lowerThird(goal, f))
+        }
+        assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
+    }
+
     @Test fun finalMoments() {
         val stars = listOf("Connor McDavid", "Stuart Skinner", "Alexandre Texier-Brodeur")
         for ((a, h) in pairs) for ((sa, sh) in listOf(4 to 0, 0 to 3, 12 to 11, 5 to 2)) for (cup in listOf(false, true)) for (n in listOf(0, 3)) {

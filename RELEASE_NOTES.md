@@ -1,4 +1,25 @@
-## bitsports 0.10.0 — the animation pack
+## bitsports 0.11.0 — goal clips with overlays, Watch, and the floating scoreboard
+
+- **Goal clips play inside bitsports, with overlays.** Tap **▶ CLIP** on any goal, or **▶ Watch every goal** for the whole game back to back. You get the NHL's official clip, dressed like a broadcast:
+  - Your goal moment plays as the intro while it loads (hat tricks, milestones and the rest included).
+  - An LED score bug sits in the corner, showing the score when the goal went in.
+  - An LED lower third slides in with the scorer, goal number, assists, power-play or shorthanded tag, and the time.
+  - Prev / next buttons, and it rolls on to the next goal by itself.
+  - **Watch the goal** in a goal alert now opens it here too.
+- **▶ WATCH** on every game lists all the legal ways to follow it right now, **free ones first**:
+  - **CBC Gem** (free) when it's on CBC, as on Hockey Night in Canada.
+  - Your team's **radio call** (880 CHED for the Oilers), in the app.
+  - **Goal clips** with the bitsports overlays.
+  - **NHL GameCenter**, free highlights on NHL.com.
+  - Then the services carrying the game (Sportsnet+, TSN+, TVA+, RDS, Prime Video, ESPN, HBO Max, NHL Network), with Canadian services ahead of US ones. Regional channels with no stream are listed as on TV.
+- **Floating scoreboard.** Switch on **Float the bitsports scoreboard over it** (or tap **Just float the scoreboard**) and the LED jumbotron sits over whatever app you're watching in.
+  - It stays live, with the power-play hourglass, heartbeat and Zamboni.
+  - The odds strip sits underneath it.
+  - **Every goal takes over the overlay** with your goal moment for a few seconds.
+  - Drag it anywhere. Tap to make it bigger or smaller, double-tap to close.
+  - Android asks once to let bitsports display over other apps. The overlay goes away on its own a few minutes after the final.
+
+## From 0.10.0 — the animation pack
 
 Twenty-plus new 128-pixel animations. Most only happen at a certain moment in a real game, so **Settings → Animations** lets you play every one of them any time.
 

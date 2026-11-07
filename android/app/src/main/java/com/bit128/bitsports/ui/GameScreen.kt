@@ -89,13 +89,14 @@ fun GameScreen(vm: BitsportsViewModel, onBack: () -> Unit) {
             Board(game, x, vm.boardFlash)
             Spacer(Modifier.height(12.dp))
             WatchButton(game, vm.followedAbbrevs())
+            WatchLive(vm, game, d, x)
             ListenButtons(game, vm.followedAbbrevs(), vm.ui.radioUrl)
             if (vm.ui.showOdds) vm.odds?.let { OddsCard(game, it, vm.oddsHistory, vm.now) }
             Spacer(Modifier.height(16.dp))
             Segmented(GameTab.entries.map { it.label }, tab.ordinal) { tab = GameTab.entries[it] }
             Spacer(Modifier.height(24.dp))
             when (tab) {
-                GameTab.GAME -> GameTabContent(game, d, x)
+                GameTab.GAME -> GameTabContent(game, d, x) { goals, goal -> vm.playClips(game, goals, goal) }
                 GameTab.LINEUPS -> LineupsTab(game, x)
                 GameTab.PLAYS -> PlaysTab(game, d)
                 GameTab.STATS -> StatsTab(vm, game, d, x)
@@ -217,7 +218,7 @@ private fun WatchButton(g: Game, followed: Set<String>) {
 // ---------- Game tab ----------
 
 @Composable
-private fun GameTabContent(g: Game, d: GameDetail?, x: GameExtras?) {
+private fun GameTabContent(g: Game, d: GameDetail?, x: GameExtras?, onClip: (List<GoalEvent>, GoalEvent) -> Unit = { _, _ -> }) {
     val started = d != null && d.plays.isNotEmpty()
     if (g.state.isLive && x != null) {
         OnIceSection(g, x)
@@ -236,10 +237,19 @@ private fun GameTabContent(g: Game, d: GameDetail?, x: GameExtras?) {
     val goals = GameAnalysis.goals(d)
     Spacer(Modifier.height(32.dp))
     SectionHead("GOALS", if (goals.isEmpty()) "None yet" else "${goals.size}")
+    // Every goal's clip back to back, with the overlays: the game in a couple of minutes.
+    goals.firstOrNull { it.clipUrl != null }?.let { first ->
+        OutlinedButton(
+            onClick = { onClip(goals, first) },
+            border = BorderStroke(1.dp, Line2), shape = RoundedCornerShape(11.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
+        ) { Text("▶ Watch every goal", color = TextInk, fontWeight = FontWeight.SemiBold) }
+        Spacer(Modifier.height(10.dp))
+    }
     if (goals.isNotEmpty()) CardBox {
         goals.forEachIndexed { i, goal ->
             if (i > 0) HorizontalDivider(color = Line)
-            GoalRow(goal)
+            GoalRow(goal) { onClip(goals, goal) }
         }
     }
 
@@ -490,8 +500,7 @@ private fun ShotMapSection(g: Game, d: GameDetail, away: com.bit128.bitsports.nh
 }
 
 @Composable
-private fun GoalRow(g: GoalEvent) {
-    val ctx = LocalContext.current
+private fun GoalRow(g: GoalEvent, onClip: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top) {
         Crest(teamName(g.teamAbbrev), 24.dp)
         Spacer(Modifier.width(12.dp))
@@ -509,7 +518,7 @@ private fun GoalRow(g: GoalEvent) {
             Spacer(Modifier.width(8.dp))
             Box(
                 Modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(10.dp)).background(Card2)
-                    .clickable { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                    .clickable(onClick = onClip)
                     .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.Center,
             ) { Label("▶ CLIP", color = TextInk) }

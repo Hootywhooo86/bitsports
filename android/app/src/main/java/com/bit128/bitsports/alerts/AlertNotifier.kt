@@ -33,6 +33,7 @@ object AlertNotifier {
     private const val CH_UPDATES = "updates"
     private const val CH_PREGAME = "pregame"
     const val EXTRA_GAME = "openGame"
+    const val EXTRA_CLIP = "playClip"
 
     fun ensureChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -69,8 +70,12 @@ object AlertNotifier {
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
-    private fun clipIntent(context: Context, url: String, code: Int): PendingIntent = PendingIntent.getActivity(
-        context, code, Intent(Intent.ACTION_VIEW, Uri.parse(url)), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    /** Opens the goal's clip in bitsports' own player, overlays and all. */
+    private fun clipIntent(context: Context, g: GoalEvent): PendingIntent = PendingIntent.getActivity(
+        context, ("clip" + g.gameId + g.eventId).hashCode(),
+        Intent(context, MainActivity::class.java).putExtra(EXTRA_GAME, g.gameId).putExtra(EXTRA_CLIP, g.eventId)
+            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
     private fun base(context: Context, channel: String, gameId: Long) = NotificationCompat.Builder(context, channel)
@@ -157,7 +162,7 @@ object AlertNotifier {
                 base(context, CH_UPDATES, game.id)
                     .setContentTitle(AlertCopy.replayTitle(alert.goal))
                     .setContentText("The replay is up.")
-                    .setContentIntent(clipIntent(context, alert.goal.clipUrl!!, alert.goal.eventId))
+                    .setContentIntent(clipIntent(context, alert.goal))
                     .build())
             is Alert.PeriodEnd -> {
                 val after = goals.lastOrNull { it.period <= alert.stats.period }
@@ -189,7 +194,7 @@ object AlertNotifier {
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .animated(context, LedScenes.goal(g, game, prefs.accent.toInt(), special))
-        g.clipUrl?.let { b.addAction(0, "Watch the goal", clipIntent(context, it, g.eventId)) }
+        if (g.clipUrl != null) b.addAction(0, "Watch the goal", clipIntent(context, g))
         post(context, ("g" + g.gameId + g.eventId).hashCode(), b.build())
     }
 
