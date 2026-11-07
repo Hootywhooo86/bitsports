@@ -132,7 +132,15 @@ class GameWatchService : Service() {
         store.save(next)
         val goals = GameAnalysis.goals(d)
         alerts.forEach { a ->
-            AlertNotifier.post(this, a, d.game, prefs, goals)
+            // Hat tricks, power-play and empty-net goals, and career milestones get their own moment.
+            val special = (a as? Alert.Goal)?.goal?.let { g ->
+                val career = g.scorerId?.takeIf { d.game.id.toString().substring(4, 6) == "02" && g.scorerTotal != null }?.let { id ->
+                    kotlinx.coroutines.withTimeoutOrNull(4_000) { DirectNhlSource().careerGoals(id, g.scorerTotal!!) }
+                }
+                com.bit128.bitsports.ui.GoalSpecial.of(g, goals, career)
+            }
+            val finalInfo = (a as? Alert.Final)?.let { com.bit128.bitsports.ui.FinalMoments.info(d) }
+            AlertNotifier.post(this, a, d.game, prefs, goals, special, finalInfo)
             if (a is Alert.Goal) LiveHub.emit(a.goal)
             if (a is Alert.PeriodEnd && prefs.alertRecap) writeRecap(d, a, store)
         }

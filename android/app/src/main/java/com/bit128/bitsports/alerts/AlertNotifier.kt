@@ -117,9 +117,10 @@ object AlertNotifier {
      * Posts one alert. If the animated LED version can't be built or posted, the same alert goes
      * out as plain text: an alert that arrives plain beats a fancy one that never arrives.
      */
-    fun post(context: Context, alert: Alert, game: Game, prefs: UiPrefs, goals: List<GoalEvent>) {
+    fun post(context: Context, alert: Alert, game: Game, prefs: UiPrefs, goals: List<GoalEvent>, special: com.bit128.bitsports.ui.GoalSpecial? = null,
+             finalInfo: com.bit128.bitsports.ui.FinalMoments.Info? = null) {
         try {
-            postRich(context, alert, game, prefs, goals)
+            postRich(context, alert, game, prefs, goals, special, finalInfo)
         } catch (e: Exception) {
             AlertLog(context).failed("LED alert failed, sent plain", e)
             postPlain(context, alert, game, prefs)
@@ -141,9 +142,10 @@ object AlertNotifier {
             .setPriority(NotificationCompat.PRIORITY_HIGH).build())
     }
 
-    private fun postRich(context: Context, alert: Alert, game: Game, prefs: UiPrefs, goals: List<GoalEvent>) {
+    private fun postRich(context: Context, alert: Alert, game: Game, prefs: UiPrefs, goals: List<GoalEvent>, special: com.bit128.bitsports.ui.GoalSpecial? = null,
+                         finalInfo: com.bit128.bitsports.ui.FinalMoments.Info? = null) {
         when (alert) {
-            is Alert.Goal -> goal(context, alert.goal, game, prefs)
+            is Alert.Goal -> goal(context, alert.goal, game, prefs, special)
             is Alert.CatchUp -> post(context, ("c" + game.id).hashCode(),
                 base(context, CH_GOALS_QUIET, game.id)
                     .setContentTitle(AlertCopy.catchUpTitle(alert.game))
@@ -170,7 +172,7 @@ object AlertNotifier {
                 base(context, CH_UPDATES, game.id)
                     .setContentTitle(AlertCopy.finalTitle(alert.game, alert.shootout))
                     .setContentText(AlertCopy.finalText(alert.threeStars))
-                    .animated(context, LedScenes.final(alert.game, alert.shootout, alert.threeStars, prefs.accent.toInt()))
+                    .animated(context, LedScenes.final(alert.game, alert.shootout, alert.threeStars, prefs.accent.toInt(), finalInfo))
                     .build())
             is Alert.Pregame -> post(context, ("g" + game.id).hashCode(),
                 base(context, CH_PREGAME, game.id)
@@ -180,13 +182,13 @@ object AlertNotifier {
         }
     }
 
-    private fun goal(context: Context, g: GoalEvent, game: Game, prefs: UiPrefs) {
+    private fun goal(context: Context, g: GoalEvent, game: Game, prefs: UiPrefs, special: com.bit128.bitsports.ui.GoalSpecial? = null) {
         val b = base(context, if (prefs.goalSound) CH_GOALS_HORN else CH_GOALS_QUIET, game.id)
             .setContentTitle(AlertCopy.goalTitle(g, game))
             .setContentText(AlertCopy.goalText(g))
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .animated(context, LedScenes.goal(g, game, prefs.accent.toInt()))
+            .animated(context, LedScenes.goal(g, game, prefs.accent.toInt(), special))
         g.clipUrl?.let { b.addAction(0, "Watch the goal", clipIntent(context, it, g.eventId)) }
         post(context, ("g" + g.gameId + g.eventId).hashCode(), b.build())
     }

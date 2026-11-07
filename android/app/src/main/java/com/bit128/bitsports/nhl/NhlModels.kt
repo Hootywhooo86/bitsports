@@ -79,6 +79,8 @@ data class GoalEvent(
     val awayScore: Int,
     val homeScore: Int,
     val clipUrl: String?,
+    /** The scorer's NHL player id, for career milestones. */
+    val scorerId: Int? = null,
 )
 
 data class PeriodStats(

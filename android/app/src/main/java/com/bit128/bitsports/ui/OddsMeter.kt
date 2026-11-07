@@ -23,19 +23,30 @@ object OddsMeter {
     private const val CHART_H = 15
     private const val TRACK = 0xFF2A2A2A.toInt()
     private const val AXIS = 0xFF3A3A3A.toInt()
+    /** How long a big swing animates, in frames. */
+    const val SWING_FRAMES = 14
+    /** A move this big (in win chance) counts as a big swing. */
+    const val BIG_SWING = 0.10f
     /** How far from even (in win chance) fills the momentum chart top to bottom. */
     private const val SWING = 0.20f
 
     fun board(
         away: String, home: String, awayInk: Int, homeInk: Int,
         awayShare: Float?, history: List<OddsSample>, live: Boolean, frame: Int = 0,
+        /** A big swing (from this share, [swingAge] frames ago): the puck zooms over with a trail. */
+        swingFrom: Float? = null, swingAge: Int = SWING_FRAMES,
     ): LedGrid {
         val g = LedGrid(COLS, ROWS)
         g.text(away.take(3), 2, 1, awayInk)
         g.textRight(home.take(3), COLS - 3, 1, homeInk)
         // The middle label blinks gently while the market is live.
-        val label = if (live) "LIVE ODDS" else "TO WIN"
-        g.textCenter(label, 1, if (live && frame % 8 < 4) HockeyBoard.LIVE else HockeyBoard.MUTED)
+        val swinging = swingFrom != null && awayShare != null && swingAge < SWING_FRAMES
+        val label = if (swinging) "BIG SWING!" else if (live) "LIVE ODDS" else "TO WIN"
+        g.textCenter(label, 1, when {
+            swinging -> if (swingAge % 2 == 0) HockeyBoard.WARN else HockeyBoard.WHITE
+            live && frame % 8 < 4 -> HockeyBoard.LIVE
+            else -> HockeyBoard.MUTED
+        })
 
         if (awayShare == null) {
             g.textCenter("NO LINE YET", 16, HockeyBoard.MUTED)
@@ -49,7 +60,13 @@ object OddsMeter {
         // Tug of war, centre tick above and below.
         val left = 2
         val width = COLS - 4
-        val split = left + (width * awayShare).roundToInt().coerceIn(2, width - 2)
+        // Mid-swing the puck is on its way: fast out of the blocks, easing in.
+        val shown = if (swinging) {
+            val t = (swingAge / 8f).coerceAtMost(1f)
+            val e = 1f - (1f - t) * (1f - t) * (1f - t)
+            swingFrom!! + (awayShare - swingFrom) * e
+        } else awayShare
+        val split = left + (width * shown).roundToInt().coerceIn(2, width - 2)
         g.fill(left, BAR_Y, split - left, BAR_H, awayInk)
         g.fill(split, BAR_Y, left + width - split, BAR_H, homeInk)
         g.fill(COLS / 2, BAR_Y - 2, 1, 1, AXIS)
@@ -57,6 +74,19 @@ object OddsMeter {
         // The puck: white, with a black edge so it reads on any colour.
         g.fill(split - 2, BAR_Y - 1, 4, BAR_H + 2, 0xFF000000.toInt())
         g.fill(split - 1, BAR_Y, 2, BAR_H, HockeyBoard.WHITE)
+        // Its motion trail: white streaks fading back toward where it came from.
+        if (swinging) {
+            val from = left + (width * swingFrom!!).roundToInt().coerceIn(2, width - 2)
+            val dir = if (split > from) -1 else 1
+            val len = (kotlin.math.abs(split - from)).coerceAtMost(40)
+            g.shape()
+            for (k in 3 until len step 2) {
+                val fade = 1f - k / len.toFloat() - swingAge / SWING_FRAMES.toFloat() * 0.5f
+                if (fade <= 0.1f) continue
+                val c = HeatMap.blend(0xFF000000.toInt(), HockeyBoard.WHITE, fade)
+                g.put(split + dir * k, BAR_Y + 1, c); g.put(split + dir * k, BAR_Y + 3, c)
+            }
+        }
 
         chart(g, history, awayInk, homeInk)
         return g

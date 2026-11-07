@@ -195,13 +195,14 @@ fun LedBoard(grid: LedGrid, modifier: Modifier = Modifier, unlit: Color = Color(
     }
 }
 
-/** The jumbotron, animated: the Zamboni drives and an empty net blinks. */
+/** The jumbotron, animated: the Zamboni drives, the power play drains, the clock beats in a close finish. */
 @Composable
-fun HockeyLedBoard(input: HockeyBoard.Input, modifier: Modifier = Modifier) {
-    val animated = input.zone is HockeyBoard.Zone.Zamboni || (input.zone as? HockeyBoard.Zone.Line)?.blink == true
+fun HockeyLedBoard(input: HockeyBoard.Input, modifier: Modifier = Modifier, warmUp: Boolean = false) {
+    val animated = input.animated || warmUp
     var frame by remember { mutableIntStateOf(0) }
-    if (animated) LaunchedEffect(Unit) { while (true) { delay(120); frame++ } }
-    val grid = remember(input, frame) { HockeyBoard.build(input, frame) }
+    if (animated) LaunchedEffect(Unit) { while (true) { delay(if (warmUp && frame < WarmUp.FRAMES) 70 else 120); frame++ } }
+    // Game day: the bulbs come on one by one the first time you see the board.
+    val grid = remember(input, frame) { HockeyBoard.build(input, frame).let { if (warmUp) WarmUp.mask(it, frame) else it } }
     LedBoard(grid, modifier)
 }
 

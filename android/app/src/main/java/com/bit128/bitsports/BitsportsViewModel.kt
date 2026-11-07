@@ -135,6 +135,13 @@ class BitsportsViewModel(
 
     /** A goal to celebrate on screen (from the watcher, the open game, or a Customize preview). */
     var goalMoment by mutableStateOf<GoalEvent?>(null)
+    /** What makes the goal moment special (hat trick, milestone...), and which side scored. */
+    var goalSpecial by mutableStateOf<com.bit128.bitsports.ui.GoalSpecial?>(null)
+    /** A big save or a hit, flashed on the open game's jumbotron. */
+    var boardFlash by mutableStateOf<com.bit128.bitsports.ui.HockeyBoard.Flash?>(null)
+    /** The final-horn moment, when one of your games ends while you're watching it. */
+    var finalMoment by mutableStateOf<com.bit128.bitsports.ui.FinalMoments.Info?>(null)
+    var goalScoredHome by mutableStateOf(false)
 
     val watchStore = WatchStore(appContext)
 
@@ -231,10 +238,24 @@ class BitsportsViewModel(
 
     fun refreshLeague() { viewModelScope.launch { refreshLeagueOnce() } }
 
+    /** Teams that moved in their division since an earlier day's standings (+ is up). */
+    var rankMoves by mutableStateOf<Map<String, Int>>(emptyMap())
+
+    /** Games on Home whose board has already done its game-day warm-up this session. */
+    val warmedUp = HashSet<Long>()
+
+    /** Pull to refresh on Home: scores, standings and news, all at once. */
+    suspend fun refreshAll() {
+        refreshGamesOnce()
+        refreshLeagueOnce()
+        refreshNews()
+    }
+
     /** Standings and stat leaders move once a night, so every 30 minutes is plenty. */
     private suspend fun refreshLeagueOnce() {
         try {
             standings = source.standings()
+            rankMoves = com.bit128.bitsports.ui.RankMoves.update(appContext, standings)
             leaders = try { source.leaders() } catch (e: java.io.IOException) { leaders }
             leagueAt = Instant.now()
             leagueError = null
@@ -347,6 +368,16 @@ class BitsportsViewModel(
                 try {
                     val d = source.playByPlay(id)
                     noticeGoals(d)
+                    com.bit128.bitsports.ui.BoardFlashes.detect(detail, d)?.let { boardFlash = it }
+                    val wasLive = detail?.game?.let { it.id == d.game.id && it.state.isLive } == true
+                    if (wasLive && d.game.state.isOver && (d.game.away.abbrev in followedAbbrevs() || d.game.home.abbrev in followedAbbrevs())) {
+                        // The Cup: the last round, and the winner had three wins before tonight.
+                        val x = extras
+                        val awayWon = (d.game.away.score ?: 0) > (d.game.home.score ?: 0)
+                        val before = if (awayWon) x?.seriesAwayWins else x?.seriesHomeWins
+                        val cup = com.bit128.bitsports.ui.HockeyBoard.playoffRound(d.game.id) == 4 && before == 3
+                        finalMoment = com.bit128.bitsports.ui.FinalMoments.info(d, cup)
+                    }
                     detail = d
                     detailError = null
                 } catch (e: Exception) {
@@ -395,7 +426,18 @@ class BitsportsViewModel(
         val seen = seenGoals[d.game.id]
         seenGoals[d.game.id] = ids.keys
         if (seen == null || !d.game.state.isLive) return
-        (ids.keys - seen).mapNotNull { ids[it] }.filter { it.teamAbbrev in followedAbbrevs() }.lastOrNull()?.let(::celebrate)
+        (ids.keys - seen).mapNotNull { ids[it] }.filter { it.teamAbbrev in followedAbbrevs() }.lastOrNull()?.let { g ->
+            val all = ids.values.toList()
+            viewModelScope.launch {
+                // A career milestone needs the scorer's page; it can't hold the moment up for long.
+                val career = g.scorerId?.takeIf { d.game.id.toString().substring(4, 6) == "02" }?.let { id ->
+                    kotlinx.coroutines.withTimeoutOrNull(2_500) { source.careerGoals(id, g.scorerTotal ?: return@withTimeoutOrNull null) }
+                }
+                goalSpecial = com.bit128.bitsports.ui.GoalSpecial.of(g, all, career)
+                goalScoredHome = g.teamAbbrev == d.game.home.abbrev
+                celebrate(g)
+            }
+        }
     }
 
     private var lastCelebrated: Pair<Long, Int>? = null
@@ -406,7 +448,9 @@ class BitsportsViewModel(
         goalMoment = g
     }
 
-    fun previewGoal() {
+    fun previewGoal(special: com.bit128.bitsports.ui.GoalSpecial? = null) {
+        goalSpecial = special
+        goalScoredHome = false
         val sample = games.firstOrNull()
         goalMoment = GoalEvent(
             gameId = -1, eventId = (Math.random() * 1e6).toInt(), teamAbbrev = followedAbbrevs().firstOrNull() ?: sample?.home?.abbrev ?: "EDM",

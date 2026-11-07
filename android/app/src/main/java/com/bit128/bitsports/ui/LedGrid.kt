@@ -13,7 +13,7 @@ class LedGrid(val cols: Int, val rows: Int) {
      */
     val owner = IntArray(cols * rows)
     val textOwners = HashSet<Int>()
-    private var current = 0
+    internal var current = 0
     private fun begin(isText: Boolean = false): Int { current++; if (isText) textOwners += current; return current }
 
     operator fun get(x: Int, y: Int) = cells[y * cols + x]
@@ -43,11 +43,23 @@ class LedGrid(val cols: Int, val rows: Int) {
         text(s, (cols - PixelFont.width(s, scale)) / 2, y, argb, scale)
 
     /** [art] rows of palette keys; '.' is off. */
-    fun sprite(art: Array<String>, x: Int, y: Int, palette: Map<Char, Int>) {
+    fun sprite(art: Array<String>, x: Int, y: Int, palette: Map<Char, Int>, scale: Int = 1) {
         begin()
         art.forEachIndexed { r, line ->
-            line.forEachIndexed { c, ch -> palette[ch]?.let { put(x + c, y + r, it) } }
+            line.forEachIndexed { c, ch ->
+                palette[ch]?.let { for (dy in 0 until scale) for (dx in 0 until scale) put(x + c * scale + dx, y + r * scale + dy, it) }
+            }
         }
+    }
+
+    /** The top [h] rows as their own board, spacing bookkeeping included (for a shorter screen). */
+    fun crop(h: Int): LedGrid {
+        val g = LedGrid(cols, h)
+        System.arraycopy(cells, 0, g.cells, 0, cols * h)
+        System.arraycopy(owner, 0, g.owner, 0, cols * h)
+        g.textOwners += textOwners
+        g.current = current
+        return g
     }
 
     /** Starts a new drawing call for direct put()s (beams, rings, dots), so they count as their own shape. */

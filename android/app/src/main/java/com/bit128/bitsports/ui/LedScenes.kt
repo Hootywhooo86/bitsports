@@ -55,7 +55,7 @@ object LedScenes {
 
     // ---------- goal ----------
 
-    fun goal(g: GoalEvent, game: Game, accent: Int): Scene {
+    fun goal(g: GoalEvent, game: Game, accent: Int, special: GoalSpecial? = null): Scene {
         val c = team(g.teamAbbrev)
         val led = TeamInk.of(g.teamAbbrev)
         fun lamp(on: Boolean): LedGrid = board().apply {
@@ -89,6 +89,18 @@ object LedScenes {
             stripText(scoreLine(game, g.awayScore, g.homeScore), HockeyBoard.WHITE, colors = c),
             stripText(lastName(g.scorer) + (g.scorerTotal?.let { " ($it)" } ?: ""), led, colors = c),
         )
+        // A special goal opens with its own moment: two beats of the hats, the slammed door, the
+        // empty net or the fireworks, from the full-screen animation.
+        if (special != null) {
+            val beats = listOf(12, 20).map { GoalMoments.build("lamp", g.teamAbbrev, null, null, it, special).crop(HockeyBoard.ROWS) }
+            val tag = when (special) {
+                is GoalSpecial.HatTrick -> if (special.goals == 3) "HAT TRICK!" else "${special.goals} GOALS!"
+                is GoalSpecial.PowerPlay -> "PP GOAL!"
+                is GoalSpecial.EmptyNet -> "EMPTY NET!"
+                is GoalSpecial.Milestone -> special.label
+            }
+            return Scene(beats + listOf(lamp(true), who, score), listOf(stripText(tag, HockeyBoard.WARN, lampOn = true)) + strips)
+        }
         return Scene(listOf(lamp(true), lamp(false), who, score), strips)
     }
 
@@ -136,7 +148,7 @@ object LedScenes {
 
     // ---------- final ----------
 
-    fun final(game: Game, shootout: Boolean, stars: List<String>, accent: Int): Scene {
+    fun final(game: Game, shootout: Boolean, stars: List<String>, accent: Int, info: FinalMoments.Info? = null): Scene {
         val a = game.away.score ?: 0
         val h = game.home.score ?: 0
         val winner = if (a >= h) game.away.abbrev else game.home.abbrev
@@ -168,7 +180,8 @@ object LedScenes {
             stripText(tag, HockeyBoard.WHITE, colors = wc),
             stripText(scoreLine(game, a, h), HockeyBoard.WHITE, colors = wc),
         ) + stars.take(1).map { stripText("* " + lastName(it), HockeyBoard.WARN) }
-        return Scene(listOf(score) + starFrames, strips)
+        val badges = info?.let { FinalMoments.badges(it) }.orEmpty()
+        return Scene(listOf(score) + badges + starFrames, strips)
     }
 
     // ---------- the live mini scoreboard ----------

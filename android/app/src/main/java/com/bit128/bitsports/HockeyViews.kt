@@ -1,5 +1,7 @@
 package com.bit128.bitsports
 
+import com.bit128.bitsports.ui.RankArrow
+
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -58,9 +60,18 @@ fun YourTeamsCards(vm: BitsportsViewModel) {
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(AlertCopy.nick(t.abbrev), color = TextInk, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text("${ordinal(t.divisionRank)} in the ${t.division} · ${t.record}", color = Muted, fontSize = 13.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("${ordinal(t.divisionRank)} in the ${t.division} · ${t.record}", color = Muted, fontSize = 13.sp)
+                        vm.rankMoves[t.abbrev]?.let { Spacer(Modifier.width(6.dp)); RankArrow(it) }
+                    }
                     Spacer(Modifier.height(6.dp))
                     FormDots(t.l10, ledOf(t.abbrev))
+                }
+                // A win streak burns: the flame grows a little with every straight win.
+                val wins = t.streak?.takeIf { it.startsWith("W") }?.drop(1)?.toIntOrNull() ?: 0
+                if (wins >= 2) {
+                    StreakFlame(wins)
+                    Spacer(Modifier.width(10.dp))
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("${t.points}", color = TextInk, fontFamily = Pixel, fontSize = 28.sp)
@@ -112,13 +123,13 @@ fun StandingsView(vm: BitsportsViewModel) {
     when (mode) {
         0 -> rows.groupBy { it.division }.toSortedMap(compareBy { DIVISION_ORDER.indexOf(it).let { i -> if (i < 0) 9 else i } })
             .forEach { (div, list) ->
-                StandingsTable(div.uppercase(), list.sortedBy { it.divisionRank }, followed, maxPts, lineAfter = 3)
+                StandingsTable(div.uppercase(), list.sortedBy { it.divisionRank }, followed, maxPts, lineAfter = 3, moves = vm.rankMoves)
                 Spacer(Modifier.height(16.dp))
             }
         1 -> rows.groupBy { it.conference }.toSortedMap().forEach { (conf, list) ->
             // Top three in each division are in; then the two best of the rest.
             list.groupBy { it.division }.toSortedMap(compareBy { DIVISION_ORDER.indexOf(it) }).forEach { (div, d) ->
-                StandingsTable(div.uppercase(), d.sortedBy { it.divisionRank }.take(3), followed, maxPts, lineAfter = null)
+                StandingsTable(div.uppercase(), d.sortedBy { it.divisionRank }.take(3), followed, maxPts, lineAfter = null, moves = vm.rankMoves)
                 Spacer(Modifier.height(10.dp))
             }
             val rest = list.filter { it.divisionRank > 3 }.sortedBy { if (it.wildCardRank > 0) it.wildCardRank else 99 + it.conferenceRank }
@@ -133,7 +144,7 @@ fun StandingsView(vm: BitsportsViewModel) {
 private val DIVISION_ORDER = listOf("Atlantic", "Metropolitan", "Central", "Pacific")
 
 @Composable
-private fun StandingsTable(title: String, rows: List<StandingRow>, followed: Set<String>, maxPts: Int, lineAfter: Int?) {
+private fun StandingsTable(title: String, rows: List<StandingRow>, followed: Set<String>, maxPts: Int, lineAfter: Int?, moves: Map<String, Int> = emptyMap()) {
     val accent = Color(LocalUi.current.accent)
     CardBox {
         Column(Modifier.padding(vertical = 10.dp)) {
@@ -150,7 +161,9 @@ private fun StandingsTable(title: String, rows: List<StandingRow>, followed: Set
                     Modifier.fillMaxWidth().background(if (mine) Card2 else Color.Transparent).padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("${i + 1}", color = if (mine) accent else Dim, fontFamily = Pixel, fontSize = 12.sp, modifier = Modifier.width(24.dp))
+                    Text("${i + 1}", color = if (mine) accent else Dim, fontFamily = Pixel, fontSize = 12.sp, modifier = Modifier.width(20.dp))
+                    // Moved since an earlier day: a little arrow shoots up or down.
+                    Box(Modifier.width(13.dp)) { moves[t.abbrev]?.let { RankArrow(it) } }
                     Crest(colorsOf(t.abbrev), 16.dp)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
@@ -255,4 +268,14 @@ private fun LeaderCard(b: LeaderBoard, followed: Set<String>) {
             }
         }
     }
+}
+
+/** A pixel flame for a win streak, taller with each straight win (up to 7). */
+@Composable
+private fun StreakFlame(wins: Int) {
+    val frame = com.bit128.bitsports.ui.goalFrame(loop = true, stepMs = 140)
+    val grid = remember(wins, frame) {
+        com.bit128.bitsports.ui.LedGrid(9, 14).also { g -> com.bit128.bitsports.ui.PixelArt.flame(g, 1, 13, (4 + wins).coerceAtMost(12), frame, w = 7) }
+    }
+    Box(Modifier.size(width = 18.dp, height = 28.dp)) { com.bit128.bitsports.ui.PixelGrid(grid) }
 }

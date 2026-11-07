@@ -1,4 +1,44 @@
-## bitsports 0.9.6 — odds that move with the play
+## bitsports 0.10.0 — the animation pack
+
+Twenty-plus new 128-pixel animations. Most only happen at a certain moment in a real game, so **Settings → Animations** lets you play every one of them any time.
+
+**Goals**
+- **Three new goal styles** to pick in Settings → Goals + alerts → Goal moment:
+  - **Shockwave:** the old score shakes, bursts into team-colour pixels that rain down, and they gather back into the new score.
+  - **Celly:** a pixel player flies in, drops to one knee and slides, then raises the stick.
+  - **Net ripple:** the puck buries in the twine and the back of the net bulges and wobbles.
+- **Special goals take over the moment and the goal alert,** whatever style you picked:
+  - **Hat trick:** caps rain onto the ice and pile up (more for 4 or 5 goals).
+  - **Power-play goal:** the penalty box lights up and the door slams shut.
+  - **Empty net:** the goalie skates to the bench while the puck trickles in, with a blinking EN.
+  - **Career milestones** (1st NHL goal, 50th, 100th, 150th, then every 100th): pixel fireworks fly together to spell it out.
+
+**During the game** (on the game screen's scoreboard)
+- **Power play:** a pixel hourglass drains as the penalty runs out, and the time flashes red in the last 10 seconds.
+- **Goalie pulled:** the goalie skates off to the bench and EXTRA ATTACKER scrolls across.
+- **Big save:** a shot from the slot that doesn't go in flashes a glove snapping shut and SAVE!
+- **Hits:** a puff of dust and HIT! on the side that threw it.
+- **Heartbeat:** in the last minute of the 3rd or overtime with a one-goal (or tied) game, the clock pulses like a heartbeat.
+- **Odds swing:** when the odds jump 10 points or more, the WIN-O-METER puck zooms across with a motion trail and BIG SWING! flashes.
+
+**Between periods and after**
+- **Zamboni:** it now leaves glinting fresh ice, and the scoreboard ahead of it is fogged over until it passes.
+- **Final horn:** when one of your games ends while you're watching, the winner's colours sweep across the screen to reveal the final, with the loser's score greyed out. The three stars then shoot in one at a time.
+- **Shutout:** a padlock drops over the goalie's name and clicks shut. It's in the final alert too.
+- **Stanley Cup:** win the Cup and it rises through falling confetti.
+- **Win streak:** a pixel flame burns next to your team on Home, growing with every straight win.
+
+**Home**
+- **Puck-drop countdown:** in the last hour, a puck hovers over centre ice with a countdown ticking every second, then drops for the faceoff.
+- **Game day:** the first time you open the app on game day, the scoreboard's bulbs come on one by one.
+- **Standings moves:** a little green or red arrow shoots up or down beside any team that moved in its division since an earlier day.
+- **Pull to refresh:** pull down on Home to wind up a slapshot, and let go to fire the puck across while everything refreshes.
+
+**Seasonal**
+- **Rivalry nights** (Battle of Alberta, Original Six, Battle of Ontario, Battle of New York and more): flames lick up both sides of the scoreboard and the rivalry's name shows before puck drop.
+- **Playoff beard:** in the playoffs the scoreboard grows a beard, longer every round.
+
+## From 0.9.6 — odds that move with the play
 
 - **Faster live odds.** During tonight's games I found that the NHL's own odds feed only refreshes every 5 minutes, and its scoreboard drops odds once the puck drops. While a game is live, bitsports now uses **DraftKings' in-game odds** (through ESPN), which move within about a minute of the play. The app and widgets check every 20 seconds. Before puck drop it still shows the NHL's partner odds (FanDuel).
 - The odds card shows which one you're seeing: "FanDuel" before the game, "DraftKings live" during it.

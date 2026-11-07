@@ -25,6 +25,8 @@ interface NhlSource {
     suspend fun odds(): Map<Long, GameOdds> = emptyMap()
     /** Odds for [games]: the NHL's before puck drop, in-game ones for the live games among them. */
     suspend fun oddsFor(games: List<Game>): Map<Long, GameOdds> = odds()
+    /** A scorer's regular-season career goals, counting [seasonGoals] for this season (null if unknown). */
+    suspend fun careerGoals(playerId: Int, seasonGoals: Int): Int? = null
 }
 
 class DirectNhlSource(
@@ -87,6 +89,10 @@ class DirectNhlSource(
         }
         return out
     }
+
+    override suspend fun careerGoals(playerId: Int, seasonGoals: Int): Int? = try {
+        NhlPlayer.careerGoals(get("$base/player/$playerId/landing"), seasonGoals)
+    } catch (e: Exception) { null }
 
     override suspend fun season(abbrev: String): List<ScheduleGame> =
         NhlSeasonParser.season(get("$base/club-schedule-season/${abbrev.uppercase()}/now"))

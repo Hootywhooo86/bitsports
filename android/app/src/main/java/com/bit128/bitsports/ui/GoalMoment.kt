@@ -15,9 +15,12 @@ import com.bit128.bitsports.R
 import com.bit128.bitsports.nhl.GoalEvent
 import kotlinx.coroutines.delay
 
-/** The full-screen GOAL moment: an LED board in one of four styles. About 2.6s, tap to dismiss. */
+/**
+ * The full-screen GOAL moment: an LED board in the style you picked, or a special one for a hat
+ * trick, power-play or empty-net goal, or a career milestone. About 3.2s, tap to dismiss.
+ */
 @Composable
-fun GoalMoment(goal: GoalEvent, style: String, sound: Boolean, onDone: () -> Unit) {
+fun GoalMoment(goal: GoalEvent, style: String, sound: Boolean, special: GoalSpecial? = null, scoredHome: Boolean = false, onDone: () -> Unit) {
     val context = LocalContext.current
     // Reduced motion: hold one finished frame instead of animating.
     val still = remember {
@@ -25,14 +28,18 @@ fun GoalMoment(goal: GoalEvent, style: String, sound: Boolean, onDone: () -> Uni
     }
     LaunchedEffect(goal.gameId, goal.eventId) {
         val player = if (sound) runCatching { MediaPlayer.create(context, R.raw.goal_horn)?.apply { start() } }.getOrNull() else null
-        delay(2_600)
+        delay(3_200)
         player?.release()
         onDone()
     }
     val frame = goalFrame(running = !still)
     val preview = goal.gameId < 0
-    val grid = remember(style, goal, frame) {
-        GoalMoments.build(style, goal.teamAbbrev, if (preview) null else goal.scorer, if (preview) null else goal.scorerTotal, if (still) 18 else frame)
+    // The shockwave blows up the score from before this goal and rebuilds the new one.
+    val after = "${goal.awayScore}-${goal.homeScore}"
+    val before = if (scoredHome) "${goal.awayScore}-${goal.homeScore - 1}" else "${(goal.awayScore - 1).coerceAtLeast(0)}-${goal.homeScore}"
+    val grid = remember(style, goal, frame, special) {
+        GoalMoments.build(style, goal.teamAbbrev, if (preview) null else goal.scorer, if (preview) null else goal.scorerTotal,
+            if (still) 24 else frame, special, before, after)
     }
     Box(
         Modifier.fillMaxSize().background(Color.Black).clickable(onClick = onDone).padding(16.dp),

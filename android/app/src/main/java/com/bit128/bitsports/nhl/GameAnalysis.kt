@@ -34,6 +34,7 @@ object GameAnalysis {
                 awayScore = det.optInt("awayScore"),
                 homeScore = det.optInt("homeScore"),
                 clipUrl = det.optString("highlightClipSharingUrl").ifBlank { null },
+                scorerId = det.optInt("scoringPlayerId").takeIf { it > 0 },
             )
         }
 

@@ -38,6 +38,7 @@ import com.bit128.bitsports.alerts.AlertScheduler
 import com.bit128.bitsports.nhl.NhlTeams
 import com.bit128.bitsports.ui.GameScreen
 import com.bit128.bitsports.ui.GoalMoment
+import com.bit128.bitsports.ui.FinalMoment
 import com.bit128.bitsports.ui.PixelIcon
 
 class MainActivity : ComponentActivity() {
@@ -86,8 +87,9 @@ class MainActivity : ComponentActivity() {
                         } else {
                             AppShell(vm)
                         }
+                        vm.finalMoment?.let { f -> FinalMoment(f, onDone = { vm.finalMoment = null }) }
                         vm.goalMoment?.let { g ->
-                            GoalMoment(g, ui.goalStyle, ui.goalSound, onDone = { vm.goalMoment = null })
+                            GoalMoment(g, ui.goalStyle, ui.goalSound, vm.goalSpecial, vm.goalScoredHome, onDone = { vm.goalMoment = null })
                         }
                     }
                 }

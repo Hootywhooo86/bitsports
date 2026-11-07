@@ -1,5 +1,10 @@
 package com.bit128.bitsports
 
+import androidx.compose.foundation.background
+
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.runtime.LaunchedEffect
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -40,12 +45,35 @@ import com.bit128.bitsports.ui.LedBoard
 import com.bit128.bitsports.ui.LedGrid
 import com.bit128.bitsports.ui.PixelFont
 
-/** Home is only about your teams: their games up top, their news under it. */
+/** Home is only about your teams: their games up top, their news under it. Pull down to refresh. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun HomeTab(vm: BitsportsViewModel) {
     val ui = LocalUi.current
     val nhl = vm.favoriteNhlGames()
     val other = vm.favoriteEspnGames()
+    val pull = androidx.compose.material3.pulltorefresh.rememberPullToRefreshState()
+    if (pull.isRefreshing) LaunchedEffect(Unit) {
+        try { vm.refreshAll() } finally { pull.endRefresh() }
+    }
+    Box(Modifier.fillMaxSize().nestedScroll(pull.nestedScrollConnection)) {
+    HomeColumn(vm, nhl, other, ui)
+    // The slapshot: wind up as you pull, fire as it refreshes.
+    if (pull.isRefreshing || pull.progress > 0f) {
+        val frame = com.bit128.bitsports.ui.goalFrame(running = pull.isRefreshing, stepMs = 60)
+        val ink = com.bit128.bitsports.ui.TeamInk.of(vm.followedAbbrevs().firstOrNull() ?: "EDM")
+        val strip = remember(pull.progress, pull.isRefreshing, frame) {
+            com.bit128.bitsports.ui.Slapshot.build(pull.progress, pull.isRefreshing, frame, ink)
+        }
+        Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).background(Ground)) {
+            LedBoard(strip)
+        }
+    }
+    }
+}
+
+@Composable
+private fun HomeColumn(vm: BitsportsViewModel, nhl: List<Game>, other: List<EspnGame>, ui: UiPrefs) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(20.dp))
         Jumbotron(vm, nhl, other)
@@ -96,8 +124,13 @@ private fun Jumbotron(vm: BitsportsViewModel, nhl: List<Game>, other: List<EspnG
         leadNhl != null -> {
             val g = leadNhl
             val records = vm.standingFor(g.away.abbrev)?.record to vm.standingFor(g.home.abbrev)?.record
-            val input = HockeyBoard.input(g, accent, vm.now, records)
-            content = { HockeyLedBoard(input) }
+            // The last hour before puck drop counts down every second.
+            val soon = !g.state.isLive && !g.state.isOver && java.time.Duration.between(vm.now, g.startUtc).toMinutes() < 61
+            val now = com.bit128.bitsports.ui.rememberTicker(1_000, enabled = soon)
+            val input = HockeyBoard.input(g, accent, if (soon) now else vm.now, records)
+            // Game day, before puck drop: the board warms up bulb by bulb, once a session.
+            val warm = remember(g.id) { !g.state.isLive && !g.state.isOver && vm.warmedUp.add(g.id) }
+            content = { HockeyLedBoard(input, warmUp = warm) }
             onClick = { vm.openGame(g.id) }
         }
         !vm.gamesLoaded -> {

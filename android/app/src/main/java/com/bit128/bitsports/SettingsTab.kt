@@ -152,6 +152,14 @@ fun SettingsTab(vm: BitsportsViewModel) {
         }
 
         Spacer(Modifier.height(32.dp))
+        SectionHead("ANIMATIONS", "Tap one to play it")
+        CardBox {
+            Column(Modifier.padding(12.dp)) {
+                com.bit128.bitsports.ui.AnimationGallery(vm.followedAbbrevs().firstOrNull() ?: "EDM")
+            }
+        }
+
+        Spacer(Modifier.height(32.dp))
         SectionHead("BITCAL", "Your NHL games on the calendar")
         BitcalSettings()
 
@@ -334,7 +342,7 @@ private fun FreeformAdd(vm: BitsportsViewModel) {
 @Composable
 private fun GoalStylePicker(selected: String, team: String, onPick: (String) -> Unit) {
     val accent = Color(LocalUi.current.accent)
-    // Four boards at once, so a slower step than the real moment keeps the settings page smooth.
+    // Several boards at once, so a slower step than the real moment keeps the settings page smooth.
     val frame = com.bit128.bitsports.ui.goalFrame(loop = true, stepMs = 180)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         GOAL_STYLES.chunked(2).forEach { row ->
@@ -360,6 +368,7 @@ private fun GoalStylePicker(selected: String, team: String, onPick: (String) -> 
                         }
                     }
                 }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }

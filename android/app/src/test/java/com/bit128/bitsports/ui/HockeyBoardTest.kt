@@ -30,7 +30,7 @@ class HockeyBoardTest {
 
     @Test fun liveGameShowsPowerPlayAndPeriodBar() {
         val i = HockeyBoard.input(game(GameState.LIVE, Clock(2, "REG", "10:00", false, true), Situation("1451", "01:23")), HockeyBoard.WHITE)
-        assertEquals(HockeyBoard.Zone.Line("EDM PP 1:23", HockeyBoard.WARN), i.zone)
+        assertEquals(HockeyBoard.Zone.PowerPlay("EDM PP 1:23", 83), i.zone)
         assertEquals(0.5f, i.progress!!, 0.001f)
         assertEquals("2ND 10:00", i.clock)
         val g = HockeyBoard.build(i)

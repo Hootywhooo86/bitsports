@@ -53,6 +53,39 @@ class SpacingTest {
         assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
     }
 
+    /** Every animation in the Settings gallery, every frame, for a few teams. */
+    @Test fun gallery() {
+        for (team in listOf("EDM", "TOR", "CGY", "UTA", "SJS")) {
+            val rival = HockeyBoard.rivalryFor(team) ?: "CGY"
+            for (e in Gallery.entries(team, if (rival == team) "EDM" else rival)) for (f in 0 until e.frames) check("gallery $team ${e.name} f$f", e.build(f))
+        }
+        assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
+    }
+
+    @Test fun finalMoments() {
+        val stars = listOf("Connor McDavid", "Stuart Skinner", "Alexandre Texier-Brodeur")
+        for ((a, h) in pairs) for ((sa, sh) in listOf(4 to 0, 0 to 3, 12 to 11, 5 to 2)) for (cup in listOf(false, true)) for (n in listOf(0, 3)) {
+            val g = game(a, h, GameState.OFF, sa, sh)
+            val info = FinalMoments.Info(g, stars.take(n), "Stuart Skinner".takeIf { minOf(sa, sh) == 0 }, shutout = minOf(sa, sh) == 0, cup = cup, tag = "FINAL/OT")
+            for (f in 0 until FinalMoments.frames(info) + 2) check("final $a-$h $sa-$sh cup=$cup n=$n f$f", FinalMoments.build(info, f))
+            FinalMoments.badges(info).forEach { check("badge $a-$h", it) }
+        }
+        assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
+    }
+
+    @Test fun jumbotronExtras() {
+        val flashes = listOf(null, HockeyBoard.Flash(HockeyBoard.Flash.Kind.SAVE, true, HockeyBoard.WHITE, 1), HockeyBoard.Flash(HockeyBoard.Flash.Kind.SAVE, false, HockeyBoard.WHITE, 2),
+            HockeyBoard.Flash(HockeyBoard.Flash.Kind.HIT, true, HockeyBoard.WHITE, 3), HockeyBoard.Flash(HockeyBoard.Flash.Kind.HIT, false, HockeyBoard.WHITE, 4))
+        val nows = listOf(start.minusSeconds(3500), start.minusSeconds(61), start.minusSeconds(5), start.plusSeconds(120))
+        for (g in allGames().filterIndexed { i, _ -> i % 5 == 0 }) for (now in nows) for (fl in flashes) for (round in 0..4) for (frame in 0..44 step 3) {
+            val i = HockeyBoard.input(g, HockeyBoard.WHITE, now, "12-10-3" to "8-2-1")
+                .copy(rivalry = if (round % 2 == 0) "BATTLE OF NEW YORK" else null, beardRound = round, heartbeat = round == 3,
+                    flash = fl?.copy(id = fl.id + frame * 100L + round))
+            check("extras ${g.away.abbrev}-${g.home.abbrev} ${g.state} ${g.situation} $now $fl r$round f$frame", HockeyBoard.build(i, frame))
+        }
+        assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
+    }
+
     @Test fun winOMeter() {
         val history = List(300) { i ->
             com.bit128.bitsports.nhl.OddsSample(i * 20_000L, 0.5f + 0.45f * kotlin.math.sin(i / 30f), i / 60, i / 90)
@@ -60,6 +93,9 @@ class SpacingTest {
         for ((a, h) in pairs) for (share in listOf(null, 0.01f, 0.2f, 0.5f, 0.77f, 0.99f)) for (hist in listOf(emptyList(), history.take(3), history)) {
             val (ai, hi) = TeamInk.pair(a, h)
             check("meter $a-$h $share ${hist.size}", OddsMeter.board(a, h, ai, hi, share, hist, live = true, frame = 0))
+            if (share != null) for (age in 0..OddsMeter.SWING_FRAMES) for (from in listOf(0.1f, 0.5f, 0.9f)) {
+                check("meter swing $a-$h $from->$share a$age", OddsMeter.board(a, h, ai, hi, share, hist, live = true, frame = age, swingFrom = from, swingAge = age))
+            }
             if (share != null) check("strip $a-$h $share", OddsMeter.strip(a, h, ai, hi, share))
         }
         assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
@@ -91,8 +127,15 @@ class SpacingTest {
     }
 
     @Test fun goalMoments() {
-        for (style in listOf("lamp", "burst", "puck", "text")) for (team in NhlTeams.all.map { it.abbrev }) for (f in 0 until GoalMoments.FRAMES + 6) {
-            check("moment $style $team f$f", GoalMoments.build(style, team, names[f % names.size], 47, f))
+        for (style in GoalMoments.STYLES) for (team in NhlTeams.all.map { it.abbrev }) for (f in 0 until GoalMoments.FRAMES + 6) {
+            check("moment $style $team f$f", GoalMoments.build(style, team, names[f % names.size], 47, f, before = "9-10", after = "10-10"))
+        }
+        val specials = listOf(GoalSpecial.HatTrick(3), GoalSpecial.HatTrick(5), GoalSpecial.PowerPlay, GoalSpecial.EmptyNet,
+            GoalSpecial.Milestone("1ST NHL GOAL"), GoalSpecial.Milestone("1000TH GOAL"))
+        for (sp in specials) for (team in NhlTeams.all.map { it.abbrev }) for (f in 0 until GoalMoments.FRAMES + 6) {
+            val g = GoalMoments.build("lamp", team, names[f % names.size], 47, f, sp)
+            check("special $sp $team f$f", g)
+            check("special strip $sp $team f$f", g.crop(HockeyBoard.ROWS))
         }
         assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
     }

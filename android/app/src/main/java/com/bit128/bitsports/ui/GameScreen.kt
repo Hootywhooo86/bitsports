@@ -86,7 +86,7 @@ fun GameScreen(vm: BitsportsViewModel, onBack: () -> Unit) {
                 Text("Loading game…", color = Muted, fontSize = 14.sp)
                 return@Column
             }
-            Board(game, x)
+            Board(game, x, vm.boardFlash)
             Spacer(Modifier.height(12.dp))
             WatchButton(game, vm.followedAbbrevs())
             ListenButtons(game, vm.followedAbbrevs(), vm.ui.radioUrl)
@@ -109,11 +109,11 @@ private fun colorsOf(abbrev: String) = teamColors(teamName(abbrev))
 
 /** The LED board, then each side's jersey, name and record. */
 @Composable
-private fun Board(g: Game, x: GameExtras?) {
+private fun Board(g: Game, x: GameExtras?, flash: HockeyBoard.Flash? = null) {
     val hasScore = g.state.isLive || g.state.isOver
     CardBox {
         Column(Modifier.padding(10.dp)) {
-            HockeyLedBoard(HockeyBoard.input(g, LocalUi.current.accent.toInt(), records = x?.away?.record to x?.home?.record))
+            HockeyLedBoard(HockeyBoard.input(g, LocalUi.current.accent.toInt(), records = x?.away?.record to x?.home?.record).copy(flash = flash))
             Spacer(Modifier.height(14.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TeamBlock(g.away.abbrev, x?.away, Modifier.weight(1f))

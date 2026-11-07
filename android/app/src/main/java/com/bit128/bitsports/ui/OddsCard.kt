@@ -17,7 +17,12 @@ import com.bit128.bitsports.nhl.GameOdds
 import com.bit128.bitsports.nhl.NhlOddsParser
 import com.bit128.bitsports.nhl.OddsHistory
 import com.bit128.bitsports.nhl.OddsSample
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.bit128.bitsports.nhl.TeamOdds
 import java.time.Duration
 import java.time.Instant
@@ -42,8 +47,21 @@ internal fun OddsCard(g: Game, o: GameOdds, history: List<OddsSample>, now: Inst
             // The WIN-O-METER: the chance each side wins as the market prices it, and how it's swung.
             val share = OddsHistory.share(o)
             val frame = (now.epochSecond / 5).toInt()
-            val board = remember(share, history, g.state.isLive, frame, awayInk, homeInk) {
-                OddsMeter.board(g.away.abbrev, g.home.abbrev, awayInk, homeInk, share, history, g.state.isLive, frame)
+            // A big swing (a goal, usually): remember where the puck was and play the zoom.
+            var last by remember(g.id) { mutableStateOf(share) }
+            var swingFrom by remember(g.id) { mutableStateOf<Float?>(null) }
+            var swingAge by remember(g.id) { mutableIntStateOf(OddsMeter.SWING_FRAMES) }
+            LaunchedEffect(share) {
+                val prev = last
+                last = share
+                if (prev != null && share != null && kotlin.math.abs(share - prev) >= OddsMeter.BIG_SWING) {
+                    swingFrom = prev
+                    for (k in 0..OddsMeter.SWING_FRAMES) { swingAge = k; kotlinx.coroutines.delay(80) }
+                    swingFrom = null
+                }
+            }
+            val board = remember(share, history, g.state.isLive, frame, awayInk, homeInk, swingFrom, swingAge) {
+                OddsMeter.board(g.away.abbrev, g.home.abbrev, awayInk, homeInk, share, history, g.state.isLive, frame, swingFrom, swingAge)
             }
             PixelGrid(board)
             Spacer(Modifier.height(6.dp))
