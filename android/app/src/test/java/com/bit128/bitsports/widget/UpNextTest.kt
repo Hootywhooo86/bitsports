@@ -6,7 +6,8 @@ import java.time.Instant
 import java.time.ZoneId
 
 class UpNextTest {
-    private val edm = ZoneId.of("America/Edmonton")
+    // A fixed offset: named zones depend on each Java version's time-zone rules.
+    private val edm = ZoneId.of("-07:00")
     private val now = Instant.parse("2026-11-09T18:00:00Z") // Monday 11:00 AM in Edmonton
 
     @Test fun tonightTomorrowWeekdayThenDate() {
