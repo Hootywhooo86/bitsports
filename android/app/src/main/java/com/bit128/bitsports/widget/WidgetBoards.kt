@@ -47,7 +47,7 @@ object WidgetBoards {
     }
 
     /** Every frame for the team widget, in the order it flips. */
-    fun team(team: String, game: Game?, next: Game?, lastGoal: GoalEvent?, oddsShare: Float?, accent: Int, now: Instant = Instant.now()): List<LedGrid> {
+    fun team(team: String, game: Game?, next: Game?, lastGoal: GoalEvent?, oddsShare: Float?, accent: Int, now: Instant = Instant.now(), last: String? = null): List<LedGrid> {
         val ink = TeamInk.of(team)
         val frames = ArrayList<LedGrid>()
         var glow = false
@@ -75,15 +75,33 @@ object WidgetBoards {
                     (if (game.home.abbrev == team) "VS " else "AT ") + PixelFont.clean(AlertCopy.nick(opp)), ink)
                 oddsShare?.let { frames += odds(game, it) }
             }
-            next != null -> {
-                val opp = if (next.home.abbrev == team) next.away.abbrev else next.home.abbrev
-                val w = UpNext.whenText(next.startUtc, now)
-                frames += messageBoard("UP NEXT", w.substringBefore(' '), w.substringAfter(' ') + " " + (if (next.home.abbrev == team) "VS " else "AT ") + opp, ink)
-                frames += HockeyBoard.build(HockeyBoard.input(next, accent, now).copy(zone = HockeyBoard.Zone.Line(UpNext.inText(next.startUtc, now).uppercase(), HockeyBoard.MUTED)))
-            }
+            next != null -> frames += upNext(team, next, last, now)
             else -> frames += messageBoard(PixelFont.clean(AlertCopy.nick(team)).take(12), "UP NEXT", "LOOKING IT UP", ink)
         }
         return frames.map { framed(it, ink, glow) }
+    }
+
+    /**
+     * Between games, one board with everything: UP NEXT, who (in their colour), when and how long
+     * till then, and how the last one went.
+     *
+     *   UP NEXT
+     *   @ NYR              double size, the opponent's colour
+     *   THU 7:00 PM · IN 2 DAYS
+     *   LAST W 4-2 VAN
+     */
+    fun upNext(team: String, next: Game, last: String?, now: Instant = Instant.now()): LedGrid {
+        val g = LedGrid(HockeyBoard.COLS, HockeyBoard.ROWS)
+        val home = next.home.abbrev == team
+        val opp = if (home) next.away.abbrev else next.home.abbrev
+        g.textCenter("UP NEXT", 1, TeamInk.of(team))
+        g.textCenter((if (home) "VS " else "@ ") + opp, 10, TeamInk.of(opp), 2)
+        val w = UpNext.whenText(next.startUtc, now)
+        val inText = UpNext.inText(next.startUtc, now).uppercase()
+        val line = if (PixelFont.width("$w $inText") <= HockeyBoard.COLS - 4) "$w $inText" else w
+        g.textCenter(line, 27, HockeyBoard.WHITE)
+        last?.let { g.textCenter(it.take(PixelFont.fits(HockeyBoard.COLS - 4)), 36, if (it.startsWith("LAST W")) 0xFF7ED957.toInt() else HockeyBoard.MUTED) }
+        return g
     }
 
     /** The odds as a board: who's favoured, and the tug-of-war strip. */

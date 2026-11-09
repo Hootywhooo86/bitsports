@@ -133,13 +133,18 @@ object Widgets {
                 for (t in teams) {
                     if (gameFor(games, t) != null) continue
                     val known = UpNext.load(app, t)
-                    if (known != null && System.currentTimeMillis() - UpNext.fetchedAt(app, t) < 3 * 3600_000L) continue
+                    if (known != null && UpNext.loadLast(app, t) != null && System.currentTimeMillis() - UpNext.fetchedAt(app, t) < 3 * 3600_000L) continue
                     val now = java.time.Instant.now()
-                    val next = runCatching { source.nextGames(t) }.getOrNull().orEmpty()
-                        .filter { !it.state.isOver && it.startUtc.isAfter(now) }.minByOrNull { it.startUtc }
-                        ?: runCatching { source.season(t) }.getOrNull().orEmpty().map { it.game }
-                            .filter { !it.state.isOver && it.startUtc.isAfter(now) }.minByOrNull { it.startUtc }
+                    val week = runCatching { source.nextGames(t) }.getOrNull().orEmpty()
+                    // The full season only when this week doesn't have what's needed (a long break).
+                    var seasonGames: List<Game>? = null
+                    suspend fun season(): List<Game> = seasonGames ?: runCatching { source.season(t) }.getOrNull().orEmpty().map { it.game }.also { seasonGames = it }
+                    val next = week.filter { !it.state.isOver && it.startUtc.isAfter(now.minusSeconds(3600)) }.minByOrNull { it.startUtc }
+                        ?: season().filter { !it.state.isOver && it.startUtc.isAfter(now) }.minByOrNull { it.startUtc }
                     next?.let { UpNext.save(app, t, it) }
+                    // And how the last one went, for the board between games.
+                    (week.filter { it.state.isOver }.maxByOrNull { it.startUtc } ?: season().filter { it.state.isOver }.maxByOrNull { it.startUtc })
+                        ?.let { UpNext.saveLast(app, t, UpNext.lastText(t, it)) }
                 }
                 // The fantasy widget: box scores for games with your list players in them.
                 if (ids(app, FantasyWidget::class.java).isNotEmpty()) {
@@ -244,15 +249,19 @@ object Widgets {
         ids(context, TeamWidget::class.java).forEach { id ->
             val team = prefs.teamFor(id)
             val tall = (manager.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110)) >= 90
-            val game = team?.let { gameFor(list, it) }
-            val next = if (game == null) team?.let { UpNext.load(context, it) } else null
+            // The NHL's "today" rolls over in the morning: a next game that's today is game day already.
+            val upcoming = team?.takeIf { gameFor(list, it) == null }?.let { UpNext.load(context, it) }
+            val game = team?.let { gameFor(list, it) } ?: upcoming?.takeIf { UpNext.isGameDay(it) }
+            val next = upcoming?.takeIf { game == null }
             manager.updateAppWidget(id, if (tall) teamLed(context, team, game, next) else teamRow(context, team, game, next))
         }
         ids(context, RinkWidget::class.java).forEach { id ->
             val cfg = prefs.load(id)
             val team = prefs.teamFor(id)
-            val game = team?.let { gameFor(list, it) }
-            val next = if (game == null) team?.let { UpNext.load(context, it) } else null
+            // The NHL's "today" rolls over in the morning: a next game that's today is game day already.
+            val upcoming = team?.takeIf { gameFor(list, it) == null }?.let { UpNext.load(context, it) }
+            val game = team?.let { gameFor(list, it) } ?: upcoming?.takeIf { UpNext.isGameDay(it) }
+            val next = upcoming?.takeIf { game == null }
             manager.updateAppWidget(id, rinkViews(context, team, game, game?.let { details[it.id] }, cfg, next))
         }
         val followed = AlertScheduler.followedAbbrevs(context)
@@ -286,7 +295,7 @@ object Widgets {
         else {
             val last = g?.let { details[it.id] }?.let { GameAnalysis.goals(it).lastOrNull() }
             val share = g?.let { odds[it.id] }?.takeIf { PrefsStore(context).load().showOdds }?.let { OddsHistory.share(it) }
-            WidgetBoards.team(team, g, next, last, share, accent)
+            WidgetBoards.team(team, g, next, last, share, accent, last = UpNext.loadLast(context, team))
         }
         flipper(context, v, frames, cell = 4)
         radioButton(context, v, team, g)
@@ -493,8 +502,13 @@ object Widgets {
             }
         }
         if (pregame) {
+            // Before puck drop the LED board says it all: no text header repeating it.
+            v.setViewVisibility(R.id.header, View.GONE)
+            v.setViewVisibility(R.id.status_row, View.GONE)
             val accent = PrefsStore(context).load().accent.toInt()
-            v.setImageViewBitmap(R.id.board, LedBitmaps.render(HockeyBoard.build(HockeyBoard.input(shown!!, accent)), cell = 5, dots = cfg.board != "solid"))
+            val board = if (g == null && next != null && team != null) WidgetBoards.upNext(team, next, UpNext.loadLast(context, team))
+            else HockeyBoard.build(HockeyBoard.input(shown!!, accent))
+            v.setImageViewBitmap(R.id.board, LedBitmaps.render(board, cell = 5, dots = cfg.board != "solid"))
             oddsLine(context, v, team, g)
             radioButton(context, v, team, g)
             return v

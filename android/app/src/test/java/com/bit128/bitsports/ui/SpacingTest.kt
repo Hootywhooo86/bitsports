@@ -81,6 +81,11 @@ class SpacingTest {
             }
         }
         com.bit128.bitsports.widget.WidgetBoards.team("EDM", null, null, null, null, HockeyBoard.WHITE).forEach { check("widget empty", it) }
+        for ((a, h) in pairs) for (days in listOf(0L, 1L, 3L, 9L)) for (last in listOf(null, "LAST W 12-11 VGK", "LAST L 0-4 WSH")) {
+            val nx = game(a, h, GameState.FUT, null, null).copy(startUtc = start.plusSeconds(days * 86_400 + 3600 * 19))
+            check("up next $a-$h $days $last", com.bit128.bitsports.widget.WidgetBoards.upNext(a, nx, last, start))
+            check("up next home $a-$h $days $last", com.bit128.bitsports.widget.WidgetBoards.upNext(h, nx, last, start))
+        }
         val box = com.bit128.bitsports.nhl.NhlFantasy.boxScore(com.bit128.bitsports.fixture("box-2026020239.json"), 2026020239L)
         val players = box.keys.take(14).mapIndexed { i, id -> com.bit128.bitsports.nhl.PlayerRef(id, names[i % names.size], if (i % 2 == 0) "EDM" else "NJD", if (i % 5 == 0) "G" else "C") }
         val n = com.bit128.bitsports.fantasy.FantasyNight.night(com.bit128.bitsports.fantasy.FantasyList("a", "The Very Long Family Pool Name", players),

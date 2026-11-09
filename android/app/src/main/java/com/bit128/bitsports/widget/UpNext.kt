@@ -67,6 +67,17 @@ object UpNext {
         return Game(p[0].toLong(), GameState.FUT, true, start, TeamLine(p[2].toInt(), p[3], null, null), TeamLine(p[4].toInt(), p[5], null, null), null as Clock?)
     }
 
+    /** "LAST W 4-2 VAN": the team's latest result, from its side. */
+    fun lastText(team: String, g: Game): String {
+        val home = g.home.abbrev == team
+        val us = (if (home) g.home.score else g.away.score) ?: 0
+        val them = (if (home) g.away.score else g.home.score) ?: 0
+        return "LAST ${if (us > them) "W" else "L"} $us-$them ${if (home) g.away.abbrev else g.home.abbrev}"
+    }
+
+    fun saveLast(context: Context, team: String, text: String) = prefs(context).edit().putString("$team.last", text).apply()
+    fun loadLast(context: Context, team: String): String? = prefs(context).getString("$team.last", null)
+
     /** When it was last looked up, to refetch a few times a day (times and dates can move). */
     fun fetchedAt(context: Context, team: String): Long = prefs(context).getLong("$team.at", 0L)
 }

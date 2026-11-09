@@ -1,4 +1,10 @@
-## bitsports 0.12.0 — Fantasy, and all-LED widgets
+## bitsports 0.12.1 — cleaner widgets between games
+
+- **No more double info.** Before puck drop and between games, the score + heat map widget drops its text header and lets the LED board say it all.
+- **A better UP NEXT board** for days without a game: who's next in their colours ("@ NYR"), the day and time with how long until it starts, and **how the last game went** ("LAST W 4-2 VAN", green for a win). The team widget uses the same board.
+- **Fixed: a game tonight could show as UP NEXT in the morning.** The NHL's "today" list rolls over partway through the morning; now a next game that's today counts as game day straight away.
+
+## From 0.12.0 — Fantasy, and all-LED widgets
 
 **Fantasy** (new tab at the bottom)
 - **Make as many lists as you want** ("My pool", "Family pool", "Waiver watch"). Search any NHL player by name and add them, from any team.
