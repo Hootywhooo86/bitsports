@@ -118,6 +118,20 @@ object Widgets {
                         games.filter { it.state.isLive }.forEach { g -> o[g.id]?.let { OddsHistory.record(app, g, it) } }
                     }
                 }
+                // No game today for a widget's team: look up its next one (a few times a day).
+                val teams = (ids(app, TeamWidget::class.java) + ids(app, RinkWidget::class.java)).toList().mapNotNull { WidgetPrefs(app).teamFor(it) }.toSet() +
+                    if (ids(app, ScoresWidget::class.java).isNotEmpty()) AlertScheduler.followedAbbrevs(app) else emptySet()
+                for (t in teams) {
+                    if (gameFor(games, t) != null) continue
+                    val known = UpNext.load(app, t)
+                    if (known != null && System.currentTimeMillis() - UpNext.fetchedAt(app, t) < 3 * 3600_000L) continue
+                    val now = java.time.Instant.now()
+                    val next = runCatching { source.nextGames(t) }.getOrNull().orEmpty()
+                        .filter { !it.state.isOver && it.startUtc.isAfter(now) }.minByOrNull { it.startUtc }
+                        ?: runCatching { source.season(t) }.getOrNull().orEmpty().map { it.game }
+                            .filter { !it.state.isOver && it.startUtc.isAfter(now) }.minByOrNull { it.startUtc }
+                    next?.let { UpNext.save(app, t, it) }
+                }
                 val prefs = WidgetPrefs(app)
                 ids(app, RinkWidget::class.java).toList().mapNotNull { prefs.teamFor(it)?.let { t -> gameFor(games, t) } }
                     .filter { it.state.isLive || it.state.isOver }
@@ -214,18 +228,23 @@ object Widgets {
             val team = prefs.teamFor(id)
             val tall = (manager.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110)) >= 90
             val game = team?.let { gameFor(list, it) }
-            manager.updateAppWidget(id, if (tall) teamViews(context, team, game, games == null && list.isEmpty()) else teamRow(context, team, game))
+            val next = if (game == null) team?.let { UpNext.load(context, it) } else null
+            manager.updateAppWidget(id, if (tall) teamViews(context, team, game, games == null && list.isEmpty(), next) else teamRow(context, team, game, next))
         }
         ids(context, RinkWidget::class.java).forEach { id ->
             val cfg = prefs.load(id)
             val team = prefs.teamFor(id)
             val game = team?.let { gameFor(list, it) }
-            manager.updateAppWidget(id, rinkViews(context, team, game, game?.let { details[it.id] }, cfg))
+            val next = if (game == null) team?.let { UpNext.load(context, it) } else null
+            manager.updateAppWidget(id, rinkViews(context, team, game, game?.let { details[it.id] }, cfg, next))
         }
         val followed = AlertScheduler.followedAbbrevs(context)
         val accent = PrefsStore(context).load().accent.toInt().takeIf { it != 0 } ?: INK
         ids(context, ScoresWidget::class.java).forEach { id ->
-            manager.updateAppWidget(id, scoresViews(context, manager, id, list, followed, accent, offline = games == null && list.isEmpty()))
+            // A day with none of your games: the scoreboard shows what's up next for each of your teams.
+            val mineToday = list.any { it.away.abbrev in followed || it.home.abbrev in followed }
+            val upcoming = if (mineToday) emptyList() else followed.mapNotNull { UpNext.load(context, it) }.distinctBy { it.id }.sortedBy { it.startUtc }
+            manager.updateAppWidget(id, scoresViews(context, manager, id, list, followed, accent, offline = games == null && list.isEmpty(), upcoming))
         }
         scheduleTick(context, list)
     }
@@ -297,7 +316,7 @@ object Widgets {
         return listOfNotNull(clock, Strengths.banner(g)?.text, shots).joinToString(" · ")
     }
 
-    private fun teamViews(context: Context, team: String?, g: Game?, offline: Boolean): RemoteViews {
+    private fun teamViews(context: Context, team: String?, g: Game?, offline: Boolean, next: Game? = null): RemoteViews {
         val v = RemoteViews(context.packageName, R.layout.widget_team)
         v.setOnClickPendingIntent(android.R.id.background, open(context, g))
         crest(v, R.id.crest_c1, R.id.crest_c2, team)
@@ -311,12 +330,19 @@ object Widgets {
         }
         when {
             team == null -> { v.setTextViewText(R.id.status, ""); bigLine("ADD A TEAM", "Follow an NHL team in bitsports") }
-            g == null -> { v.setTextViewText(R.id.status, ""); bigLine("NO GAME", if (offline) "Can't reach the NHL feed" else "Nothing on today") }
+            g == null && next != null -> {
+                // No game today: what's up next, and when.
+                v.setTextViewText(R.id.status, "UP NEXT"); v.setTextColor(R.id.status, MUTED)
+                val opp = if (next.home.abbrev == team) "vs " + AlertCopy.nick(next.away.abbrev) else "at " + AlertCopy.nick(next.home.abbrev)
+                bigLine(UpNext.whenText(next.startUtc), "$opp · ${UpNext.inText(next.startUtc)}")
+                v.setOnClickPendingIntent(android.R.id.background, open(context, next))
+            }
+            g == null -> { v.setTextViewText(R.id.status, ""); bigLine(if (offline) "OFFLINE" else "UP NEXT", if (offline) "Can't reach the NHL feed" else "Looking up the next game") }
             !g.state.isLive && !g.state.isOver -> {
-                val (s, col) = status(g)
-                v.setTextViewText(R.id.status, s); v.setTextColor(R.id.status, col)
+                // Game day.
+                v.setTextViewText(R.id.status, "GAME DAY"); v.setTextColor(R.id.status, WARN)
                 val opp = if (g.home.abbrev == team) "vs " + AlertCopy.nick(g.away.abbrev) else "at " + AlertCopy.nick(g.home.abbrev)
-                bigLine(ScoreFormat.status(g), if (g.scheduleOk) opp else "$opp · postponed")
+                bigLine(ScoreFormat.status(g), if (g.scheduleOk) "$opp · ${UpNext.inText(g.startUtc)}" else "$opp · postponed")
             }
             else -> {
                 val home = g.home.abbrev == team
@@ -342,7 +368,7 @@ object Widgets {
         return v
     }
 
-    private fun teamRow(context: Context, team: String?, g: Game?): RemoteViews {
+    private fun teamRow(context: Context, team: String?, g: Game?, next: Game? = null): RemoteViews {
         val v = RemoteViews(context.packageName, R.layout.widget_team_row)
         v.setOnClickPendingIntent(android.R.id.background, open(context, g))
         crest(v, R.id.crest_c1, R.id.crest_c2, team)
@@ -350,11 +376,17 @@ object Widgets {
         v.setTextColor(R.id.status, MUTED)
         when {
             team == null -> { v.setTextViewText(R.id.score_line, "Add a team"); v.setTextViewText(R.id.status, "") }
-            g == null -> { v.setTextViewText(R.id.score_line, "No game"); v.setTextViewText(R.id.status, "") }
+            g == null && next != null -> {
+                val opp = if (next.home.abbrev == team) "VS " + next.away.abbrev else "@ " + next.home.abbrev
+                v.setTextViewText(R.id.score_line, "NEXT $opp")
+                v.setTextViewText(R.id.status, UpNext.whenText(next.startUtc))
+            }
+            g == null -> { v.setTextViewText(R.id.score_line, "Up next"); v.setTextViewText(R.id.status, "") }
             !g.state.isLive && !g.state.isOver -> {
                 val opp = if (g.home.abbrev == team) "VS " + g.away.abbrev else "@ " + g.home.abbrev
                 v.setTextViewText(R.id.score_line, opp)
-                v.setTextViewText(R.id.status, ScoreFormat.status(g))
+                v.setTextViewText(R.id.status, "GAME DAY " + ScoreFormat.status(g))
+                v.setTextColor(R.id.status, WARN)
             }
             else -> {
                 val home = g.home.abbrev == team
@@ -370,10 +402,11 @@ object Widgets {
 
     private fun scoresViews(
         context: Context, manager: AppWidgetManager, id: Int, games: List<Game>, followed: Set<String>, accent: Int, offline: Boolean,
+        upcoming: List<Game> = emptyList(),
     ): RemoteViews {
         val v = RemoteViews(context.packageName, R.layout.widget_scores)
         v.setOnClickPendingIntent(android.R.id.background, open(context, null))
-        val ordered = ScoreFormat.order(games, followed)
+        val ordered = if (upcoming.isNotEmpty()) upcoming + ScoreFormat.order(games, followed) else ScoreFormat.order(games, followed)
         val live = games.count { it.state.isLive }
         v.setTextViewText(R.id.status, when {
             offline -> "OFFLINE"
@@ -382,6 +415,10 @@ object Widgets {
             else -> "${games.size} GAMES"
         })
         v.setTextColor(R.id.status, if (live > 0) LIVE_RED else MUTED)
+        if (upcoming.isNotEmpty()) {
+            // None of your games today: your teams' next games, with the day.
+            v.setTextViewText(R.id.status, "UP NEXT · " + UpNext.whenText(upcoming.first().startUtc).substringBefore(' '))
+        }
         // How many rows fit: the board keeps 128 LEDs across, so its height in LEDs follows the widget's shape.
         val o = manager.getAppWidgetOptions(id)
         val w = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250).coerceAtLeast(110) - 28
@@ -393,29 +430,40 @@ object Widgets {
         return v
     }
 
-    private fun rinkViews(context: Context, team: String?, g: Game?, d: GameDetail?, cfg: WidgetConfig): RemoteViews {
+    private fun rinkViews(context: Context, team: String?, g: Game?, d: GameDetail?, cfg: WidgetConfig, next: Game? = null): RemoteViews {
         val v = RemoteViews(context.packageName, R.layout.widget_rink)
-        v.setOnClickPendingIntent(android.R.id.background, open(context, g))
-        val awayAbbrev = g?.away?.abbrev ?: team
-        val homeAbbrev = g?.home?.abbrev
+        v.setOnClickPendingIntent(android.R.id.background, open(context, g ?: next))
+        val shown = g ?: next
+        val awayAbbrev = shown?.away?.abbrev ?: team
+        val homeAbbrev = shown?.home?.abbrev
         crest(v, R.id.away_c1, R.id.away_c2, awayAbbrev)
         crest(v, R.id.home_c1, R.id.home_c2, homeAbbrev)
         v.setTextViewText(R.id.away_abbrev, awayAbbrev ?: "")
         v.setTextViewText(R.id.home_abbrev, homeAbbrev ?: "")
         v.setViewVisibility(R.id.home_c1, if (homeAbbrev == null) View.GONE else View.VISIBLE)
         v.setViewVisibility(R.id.home_c2, if (homeAbbrev == null) View.GONE else View.VISIBLE)
+        // Before puck drop (game day or up next) the board is the arena jumbotron, not an empty rink.
+        val pregame = shown != null && !shown.state.isLive && !shown.state.isOver
         when {
+            g == null && next != null -> {
+                v.setTextViewText(R.id.score, "NEXT")
+                v.setTextViewText(R.id.status, "UP NEXT · " + UpNext.whenText(next.startUtc))
+                v.setTextColor(R.id.status, MUTED)
+                v.setTextViewText(R.id.shots, UpNext.inText(next.startUtc).uppercase())
+                v.setTextColor(R.id.shots, MUTED)
+            }
             g == null -> {
-                v.setTextViewText(R.id.score, if (team == null) "ADD A TEAM" else "NO GAME")
-                v.setTextViewText(R.id.status, if (team == null) "Follow an NHL team in bitsports" else "Nothing on today")
+                v.setTextViewText(R.id.score, if (team == null) "ADD A TEAM" else "UP NEXT")
+                v.setTextViewText(R.id.status, if (team == null) "Follow an NHL team in bitsports" else "Looking up the next game")
                 v.setTextColor(R.id.status, MUTED)
                 v.setTextViewText(R.id.shots, "")
             }
             !g.state.isLive && !g.state.isOver -> {
                 v.setTextViewText(R.id.score, "VS")
-                v.setTextViewText(R.id.status, "PUCK DROP " + ScoreFormat.status(g))
-                v.setTextColor(R.id.status, MUTED)
-                v.setTextViewText(R.id.shots, "")
+                v.setTextViewText(R.id.status, "GAME DAY · PUCK DROP " + ScoreFormat.status(g))
+                v.setTextColor(R.id.status, WARN)
+                v.setTextViewText(R.id.shots, UpNext.inText(g.startUtc).uppercase())
+                v.setTextColor(R.id.shots, MUTED)
             }
             else -> {
                 v.setTextViewText(R.id.score, "${g.away.score ?: 0}–${g.home.score ?: 0}")
@@ -431,6 +479,13 @@ object Widgets {
                 v.setTextViewText(R.id.shots, banner?.text ?: if (g.away.sog != null) "SHOTS ${g.away.sog}–${g.home.sog}" else "")
                 v.setTextColor(R.id.shots, if (banner != null) WARN else MUTED)
             }
+        }
+        if (pregame) {
+            val accent = PrefsStore(context).load().accent.toInt()
+            v.setImageViewBitmap(R.id.board, LedBitmaps.render(HockeyBoard.build(HockeyBoard.input(shown!!, accent)), cell = 5, dots = cfg.board != "solid"))
+            oddsLine(context, v, team, g)
+            radioButton(context, v, team, g)
+            return v
         }
         val shots = d?.let { GameAnalysis.shots(it) }.orEmpty()
         val only = if (cfg.heat == "mine") team else null

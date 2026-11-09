@@ -84,6 +84,13 @@ object ScoreboardLeds {
             game.state.isLive && c != null && c.inIntermission -> "INT ${short(c.period, c.periodType)}" to HockeyBoard.MUTED
             game.state.isLive && c != null -> "${short(c.period, c.periodType)} ${c.timeRemaining.removePrefix("0")}" to HockeyBoard.LIVE
             game.state.isOver -> ScoreFormat.status(game).replace("FINAL/", "F/") to HockeyBoard.MUTED
+            // Up next on another day: the day goes first ("SAT 7PM"), dropped if it doesn't fit.
+            !UpNext.isGameDay(game) -> {
+                val t = ScoreFormat.status(game).filterNot { it.isWhitespace() || it == '\u00A0' || it == '\u202F' }.uppercase().replace(":00", "")
+                val day = java.time.format.DateTimeFormatter.ofPattern("EEE", java.util.Locale.CANADA)
+                    .format(game.startUtc.atZone(java.time.ZoneId.systemDefault())).uppercase().replace(".", "")
+                "$day $t" to HockeyBoard.MUTED
+            }
             else -> ScoreFormat.status(game).filterNot { it.isWhitespace() || it == '\u00A0' || it == '\u202F' }.uppercase() to HockeyBoard.MUTED
         }
     }

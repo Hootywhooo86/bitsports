@@ -1,4 +1,11 @@
-## bitsports 0.11.0 — goal clips with overlays, Watch, and the floating scoreboard
+## bitsports 0.11.1 — Up next on the widgets
+
+- **No more "NO GAME".** On days your team doesn't play, the widgets show **UP NEXT**: the day and time ("FRI 5:00 PM", "TOMORROW 7:30 PM") and who it's against ("at Flames · in 4 days"). Tap it to open that game.
+- **Game day takes over automatically.** On the day of the game the widget switches to the game-day look: **GAME DAY**, puck-drop time and how long until it starts. The score + heat map widget shows the arena jumbotron with the puck-drop countdown in the last hour, and the radio button. Then it goes live.
+- **Scoreboard widget:** on a day with none of your games, it lists each of your teams' next games with the day ("SAT 7PM").
+- The next game is saved on your phone, so the widget still shows it after a restart or with no signal. It's checked again a few times a day in case times change.
+
+## From 0.11.0 — goal clips with overlays, Watch, and the floating scoreboard
 
 - **Goal clips play inside bitsports, with overlays.** Tap **▶ CLIP** on any goal, or **▶ Watch every goal** for the whole game back to back. You get the NHL's official clip, dressed like a broadcast:
   - Your goal moment plays as the intro while it loads (hat tricks, milestones and the rest included).
