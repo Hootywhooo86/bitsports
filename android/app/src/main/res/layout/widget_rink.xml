@@ -101,6 +101,15 @@
         android:textColor="#8C8C8C"
         android:textSize="9sp" />
 
+    <ImageView
+        android:id="@+id/board"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="6dp"
+        android:contentDescription="Scoreboard"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_board_preview" />
     <!-- Listen live: plays your team's radio call right from the widget. -->
     <TextView
         android:id="@+id/radio"
@@ -117,15 +126,4 @@
         android:text="♪ LISTEN LIVE · 880 CHED"
         android:textColor="#FFFFFF"
         android:textSize="10sp" />
-
-    <ImageView
-        android:id="@+id/board"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="10dp"
-        android:adjustViewBounds="true"
-        android:contentDescription="Shot heat map"
-        android:scaleType="fitCenter"
-        android:src="@drawable/widget_board_preview" />
 </LinearLayout>

@@ -296,9 +296,10 @@ object Widgets {
     /** How many LED rows fill this widget (it's 128 LEDs across, so its shape decides). */
     private fun rowsFor(manager: AppWidgetManager, id: Int, radio: Boolean = false): Int {
         val o = manager.getAppWidgetOptions(id)
-        val w = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250).coerceAtLeast(110) - 20
-        // The listen-live strip takes about 36dp under the board.
-        val h = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 180).coerceAtLeast(60) - 24 - (if (radio) 36 else 0)
+        // The widget's 14dp padding on each side, the 6dp above the board, and the listen-live
+        // strip (28dp and its 8dp margin) under it: the board gets exactly what's left.
+        val w = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250).coerceAtLeast(110) - 28
+        val h = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 180).coerceAtLeast(60) - 34 - (if (radio) 36 else 0)
         return WidgetCards.rowsFor(w, h)
     }
 
@@ -553,7 +554,14 @@ object Widgets {
             v.setViewVisibility(R.id.header, View.GONE)
             v.setViewVisibility(R.id.status_row, View.GONE)
             val accent = PrefsStore(context).load().accent.toInt()
-            val board = team?.let { card(context, it, g, next, games, rows) } ?: HockeyBoard.build(HockeyBoard.input(shown!!, accent))
+            // Game day: the heat-map board from the morning on (VS and the countdown over the empty
+            // rink); a day off: Around the league.
+            val board = if (g != null && team != null) {
+                val opp = if (g.home.abbrev == team) g.away.abbrev else g.home.abbrev
+                val station = com.bit128.bitsports.nhl.NhlRadio.forTeam(team, PrefsStore(context).load().radioUrl)
+                val on = station.stream != null && RadioService.state.value.let { it.url == station.stream && it.status == RadioService.Status.PLAYING }
+                LiveCards.heat(g, null, rows, radioOn = on, below = UpNext.loadMeeting(context, team, opp, g.id))
+            } else team?.let { card(context, it, g, next, games, rows) } ?: HockeyBoard.build(HockeyBoard.input(shown!!, accent))
             v.setImageViewBitmap(R.id.board, LedBitmaps.render(board, cell = 4, dots = cfg.board != "solid"))
             // The matchup board carries the odds itself.
             v.setViewVisibility(R.id.odds, View.GONE)

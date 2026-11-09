@@ -108,8 +108,8 @@ class SpacingTest {
 
     @Test fun liveCards() {
         val shots = (0 until 40).map { com.bit128.bitsports.nhl.ShotMark(if (it % 2 == 0) "EDM" else "CGY", 40 + it, (it * 7) % 70 - 35, it % 9 == 0, 1, null) }
-        for (g in allGames().filterIndexed { i, _ -> i % 4 == 0 }) for (rows in listOf(60, 80, 96, 120, 140)) for (on in listOf(false, true)) {
-            check("live heat ${g.away.abbrev}-${g.home.abbrev} ${g.situation} $rows", com.bit128.bitsports.widget.LiveCards.heat(g, null, rows, radioOn = on))
+        for (g in allGames().filterIndexed { i, _ -> i % 4 == 0 }) for (rows in listOf(60, 80, 87, 91, 96, 120, 140)) for (on in listOf(false, true)) {
+            check("live heat ${g.away.abbrev}-${g.home.abbrev} ${g.situation} $rows", com.bit128.bitsports.widget.LiveCards.heat(g, null, rows, radioOn = on, below = "LAST MEET W 12-11"))
         }
         assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
     }

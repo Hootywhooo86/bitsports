@@ -80,22 +80,44 @@ object WidgetCards {
     fun matchup(game: Game, awayRecord: String?, homeRecord: String?, lastMeeting: String?, oddsShare: Float?, countdown: String, rows: Int = 104): LedGrid {
         val g = LedGrid(COLS, rows)
         val (ai, hi) = TeamInk.pair(game.away.abbrev, game.home.abbrev)
-        jersey(g, game.away.abbrev, 2, 2); jersey(g, game.home.abbrev, COLS - 34, 2)
-        g.textCenter("VS", 8, HockeyBoard.WHITE, 3)
-        g.text(game.away.abbrev, 9, 30, ai); g.textRight(game.home.abbrev, COLS - 10, 30, hi)
-        awayRecord?.let { g.text(it, 2, 40, HockeyBoard.MUTED) }; homeRecord?.let { g.textRight(it, COLS - 3, 40, HockeyBoard.MUTED) }
-        // Below the jerseys, top to bottom as far as the widget is tall: puck drop (big if
-        // there's room), the countdown, the last meeting, the odds bar at the very bottom.
-        var y = 50
-        val oddsRows = if (oddsShare != null) 12 else 0
-        fun room(h: Int) = y + h <= rows - oddsRows
+        // The pieces top to bottom with their heights; what doesn't fit is left out (least
+        // important first), and spare rows are shared out between them so nothing sits in a gap.
         val time = when_(game)
-        if (room(14) && rows - oddsRows - y >= 14 + 10) { g.textCenter(time, y, HockeyBoard.WHITE, 2); y += 18 }
-        else if (room(7)) { g.textCenter(time, y, HockeyBoard.WHITE); y += 10 }
-        if (room(7)) { g.textCenter(countdown, y, HockeyBoard.MUTED); y += 10 }
-        lastMeeting?.let { if (room(7)) { g.textCenter(it.take(20), y, if (it.contains(" W ")) 0xFF7ED957.toInt() else HockeyBoard.MUTED); y += 10 } }
-        oddsShare?.let { stripAt(g, OddsMeter.strip(game.away.abbrev, game.home.abbrev, ai, hi, it), rows - 10) }
+        data class Block(val h: Int, val draw: (Int) -> Unit)
+        val top = Block(45) { y ->
+            jersey(g, game.away.abbrev, 2, y); jersey(g, game.home.abbrev, COLS - 34, y)
+            g.textCenter("VS", y + 6, HockeyBoard.WHITE, 3)
+            g.text(game.away.abbrev, 9, y + 28, ai); g.textRight(game.home.abbrev, COLS - 10, y + 28, hi)
+            awayRecord?.let { g.text(it, 2, y + 38, HockeyBoard.MUTED) }; homeRecord?.let { g.textRight(it, COLS - 3, y + 38, HockeyBoard.MUTED) }
+        }
+        val bigTime = Block(14) { y -> g.textCenter(time, y, HockeyBoard.WHITE, 2) }
+        val smallTime = Block(7) { y -> g.textCenter(time, y, HockeyBoard.WHITE) }
+        val count = Block(7) { y -> g.textCenter(countdown, y, HockeyBoard.MUTED) }
+        val meet = lastMeeting?.let { m -> Block(7) { y -> g.textCenter(m.take(20), y, if (m.contains(" W ")) 0xFF7ED957.toInt() else HockeyBoard.MUTED) } }
+        val odds = oddsShare?.let { sh -> Block(9) { y -> stripAt(g, OddsMeter.strip(game.away.abbrev, game.home.abbrev, ai, hi, sh), y) } }
+        val options = listOf(
+            listOfNotNull(top, bigTime, count, meet, odds),
+            listOfNotNull(top, smallTime, count, meet, odds),
+            listOfNotNull(top, smallTime, count, odds),
+            listOfNotNull(top, smallTime, odds),
+            listOfNotNull(top, smallTime),
+        )
+        val blocks = options.first { list -> list.sumOf { it.h } + 2 * (list.size + 1) <= rows || list === options.last() }
+        spread(blocks.map { it.h }, rows).zip(blocks).forEach { (y, b) -> b.draw(y) }
         return g
+    }
+
+    /** Where each of [heights] goes so the spare rows are shared evenly above, between and below. */
+    fun spread(heights: List<Int>, rows: Int): List<Int> {
+        val free = (rows - heights.sum()).coerceAtLeast(0)
+        val gap = free / (heights.size + 1)
+        var extra = free - gap * (heights.size + 1)
+        var y = gap.coerceAtLeast(1)
+        return heights.map { h ->
+            val at = y
+            y += h + gap + if (extra-- > 0) 1 else 0
+            at
+        }
     }
 
     /** B: the matchup up top, then head-to-head bars in team colours. */

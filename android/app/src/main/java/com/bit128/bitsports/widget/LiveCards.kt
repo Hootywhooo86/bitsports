@@ -37,22 +37,43 @@ object LiveCards {
         g.textOwners += src.textOwners.map { it + tag }
     }
 
-    /** VAN  1-3  EDM over the clock, with the power play beside it when there is one. */
-    fun header(g: LedGrid, game: Game, roomLeft: Int = 0) {
+    /**
+     * VAN  1-3  EDM over the clock, with the power play beside it when there is one. Before puck
+     * drop it's VAN  VS  EDM over the start time and countdown. [sogBeside] puts each side's shots
+     * at the ends of the clock line (when there's no room for a line of its own).
+     */
+    fun header(g: LedGrid, game: Game, roomLeft: Int = 0, sogBeside: Boolean = false, radioOn: Boolean = false) {
         val (ai, hi) = TeamInk.pair(game.away.abbrev, game.home.abbrev)
-        val a = game.away.score ?: 0; val h = game.home.score ?: 0
         g.text(game.away.abbrev, 2, 6, ai); g.textRight(game.home.abbrev, COLS - 3, 6, hi)
-        val step = (PixelFont.W + 1) * 2
-        val all = "$a-$h"
-        val x0 = (COLS - PixelFont.width(all, 2)) / 2
-        g.text("$a", x0, 2, if (a >= h) HockeyBoard.WHITE else HockeyBoard.MUTED, 2)
-        g.text("-", x0 + "$a".length * step, 2, HockeyBoard.DIM, 2)
-        g.text("$h", x0 + ("$a".length + 1) * step, 2, if (h >= a) HockeyBoard.WHITE else HockeyBoard.MUTED, 2)
-        val clock = HockeyBoard.clockText(game)
+        val started = game.state.isLive || game.state.isOver
+        if (started) {
+            val a = game.away.score ?: 0; val h = game.home.score ?: 0
+            val step = (PixelFont.W + 1) * 2
+            val all = "$a-$h"
+            val x0 = (COLS - PixelFont.width(all, 2)) / 2
+            g.text("$a", x0, 2, if (a >= h) HockeyBoard.WHITE else HockeyBoard.MUTED, 2)
+            g.text("-", x0 + "$a".length * step, 2, HockeyBoard.DIM, 2)
+            g.text("$h", x0 + ("$a".length + 1) * step, 2, if (h >= a) HockeyBoard.WHITE else HockeyBoard.MUTED, 2)
+        } else g.textCenter("VS", 2, HockeyBoard.WHITE, 2)
+        val clock = if (started) HockeyBoard.clockText(game)
+            else UpNext.whenText(game.startUtc).substringAfter(' ') + " " + WidgetCards.countdownText(game.startUtc)
         val banner = com.bit128.bitsports.nhl.Strengths.banner(game)?.text
-        // [roomLeft] keeps the line clear of something at the left edge (the radio speaker), both sides alike.
-        val line = listOfNotNull(clock, banner).joinToString(" ").take(PixelFont.fits(COLS - 2 * roomLeft))
-        g.textCenter(line, 19, if (banner != null) HockeyBoard.WARN else HockeyBoard.LIVE)
+        var edge = roomLeft
+        var speakerX = 2
+        if (sogBeside && started) {
+            val l = "${game.away.sog ?: 0}"; val r = "${game.home.sog ?: 0}"
+            g.text(l, 2, 19, ai); g.textRight(r, COLS - 3, 19, hi)
+            edge = maxOf(edge, maxOf(PixelFont.width(l), PixelFont.width(r)) + 6)
+            speakerX = 2 + PixelFont.width(l) + 3
+        }
+        // The radio's on: a little speaker at the left of the clock line.
+        if (radioOn) {
+            g.sprite(SPEAKER, speakerX, 19, mapOf('#' to HockeyBoard.WHITE, 'w' to PixelArt.GOLD))
+            edge = maxOf(edge, speakerX + SPEAKER[0].length + 3)
+        }
+        // [edge] keeps the line clear of what's at the ends (shots, the radio speaker), both sides alike.
+        val line = listOfNotNull(clock, banner).joinToString(" ").take(PixelFont.fits(COLS - 2 * edge))
+        g.textCenter(line, 19, when { banner != null -> HockeyBoard.WARN; started -> HockeyBoard.LIVE; else -> HockeyBoard.MUTED })
     }
 
     private fun base(game: Game, rows: Int, roomLeft: Int = 0) = LedGrid(COLS, rows).also { header(it, game, roomLeft) }
@@ -81,18 +102,27 @@ object LiveCards {
         return g
     }
 
-    /** 2. The shot heat map, as big as the widget allows, under the score. */
-    fun heat(game: Game, d: GameDetail?, rows: Int, onlyTeam: String? = null, radioOn: Boolean = false): LedGrid {
-        val g = base(game, rows, roomLeft = if (radioOn) 12 else 0)
-        // The radio's on: a little speaker beside the clock.
-        if (radioOn) g.sprite(SPEAKER, 2, 19, mapOf('#' to HockeyBoard.WHITE, 'w' to PixelArt.GOLD))
-        val shots = d?.let { com.bit128.bitsports.nhl.GameAnalysis.shots(it) }.orEmpty()
-        val rink = HeatMap.draw(HeatMap.heat(shots, game.away.abbrev, onlyTeam), TeamInk.pair(game.away.abbrev, game.home.abbrev))
-        paste(g, rink, HEADER, 60_000)
-        val y = HEADER + rink.rows + 3
-        if (y + 7 <= rows) {
+    /**
+     * 2. The shot heat map, as big as the widget allows, under the score: the game-day widget.
+     * Before puck drop the rink waits empty under VS and the countdown, with [below] (the last
+     * meeting) under it if there's room.
+     */
+    fun heat(game: Game, d: GameDetail?, rows: Int, onlyTeam: String? = null, radioOn: Boolean = false, below: String? = null): LedGrid {
+        val g = LedGrid(COLS, rows)
+        val started = game.state.isLive || game.state.isOver
+        val rink = HeatMap.draw(HeatMap.heat(d?.let { com.bit128.bitsports.nhl.GameAnalysis.shots(it) }.orEmpty(), game.away.abbrev, onlyTeam),
+            TeamInk.pair(game.away.abbrev, game.home.abbrev))
+        // The line under the rink: shots on goal (or, before puck drop, the last meeting) if it fits.
+        val lineBelow = HEADER - 2 + rink.rows + 9 <= rows
+        header(g, game, sogBeside = !lineBelow, radioOn = radioOn)
+        val text = if (started) null else below
+        val heights = if (lineBelow && (started || text != null)) listOf(rink.rows, 7) else listOf(rink.rows)
+        val at = WidgetCards.spread(heights, rows - HEADER + 2).map { it + HEADER - 2 }
+        paste(g, rink, at[0], 60_000)
+        if (heights.size == 2) {
             val (ai, hi) = TeamInk.pair(game.away.abbrev, game.home.abbrev)
-            g.text("SOG ${game.away.sog ?: 0}", 2, y, ai); g.textRight("${game.home.sog ?: 0} SOG", COLS - 3, y, hi)
+            if (started) { g.text("SOG ${game.away.sog ?: 0}", 2, at[1], ai); g.textRight("${game.home.sog ?: 0} SOG", COLS - 3, at[1], hi) }
+            else text?.let { g.textCenter(it.take(20), at[1], if (it.contains(" W ")) 0xFF7ED957.toInt() else HockeyBoard.MUTED) }
         }
         return g
     }
