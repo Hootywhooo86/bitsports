@@ -104,7 +104,7 @@
     <!-- Listen live: plays your team's radio call right from the widget. -->
     <TextView
         android:id="@+id/radio"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:background="@drawable/widget_pill"

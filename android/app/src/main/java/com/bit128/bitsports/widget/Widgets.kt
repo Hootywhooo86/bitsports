@@ -278,7 +278,8 @@ object Widgets {
             val upcoming = team?.takeIf { gameFor(list, it) == null }?.let { UpNext.load(context, it) }
             val game = team?.let { gameFor(list, it) } ?: upcoming?.takeIf { UpNext.isGameDay(it) }
             val next = upcoming?.takeIf { game == null }
-            manager.updateAppWidget(id, rinkViews(context, team, game, game?.let { details[it.id] }, cfg, next, list, rowsFor(manager, id)))
+            manager.updateAppWidget(id, rinkViews(context, team, game, game?.let { details[it.id] }, cfg, next, list,
+                rowsFor(manager, id, radio = game != null && !game.state.isOver)))
         }
         val followed = AlertScheduler.followedAbbrevs(context)
         val accent = PrefsStore(context).load().accent.toInt().takeIf { it != 0 } ?: INK
@@ -293,10 +294,11 @@ object Widgets {
     }
 
     /** How many LED rows fill this widget (it's 128 LEDs across, so its shape decides). */
-    private fun rowsFor(manager: AppWidgetManager, id: Int): Int {
+    private fun rowsFor(manager: AppWidgetManager, id: Int, radio: Boolean = false): Int {
         val o = manager.getAppWidgetOptions(id)
         val w = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250).coerceAtLeast(110) - 20
-        val h = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 180).coerceAtLeast(60) - 24
+        // The listen-live strip takes about 36dp under the board.
+        val h = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 180).coerceAtLeast(60) - 24 - (if (radio) 36 else 0)
         return WidgetCards.rowsFor(w, h)
     }
 
@@ -559,12 +561,22 @@ object Widgets {
             radioButton(context, v, team, g)
             return v
         }
-        val shots = d?.let { GameAnalysis.shots(it) }.orEmpty()
+        if (g == null) {
+            // Nothing known yet (no game today and the next one not looked up): the empty rink.
+            v.setImageViewBitmap(R.id.board, LedBitmaps.render(com.bit128.bitsports.ui.PixelRink.copy(), cell = 5, dots = cfg.board != "solid"))
+            radioButton(context, v, team, null)
+            return v
+        }
+        // Live and final: one LED board, the score and clock over the shot heat map, as tall as the
+        // widget less the listen-live strip under it.
+        v.setViewVisibility(R.id.header, View.GONE)
+        v.setViewVisibility(R.id.status_row, View.GONE)
+        v.setViewVisibility(R.id.odds, View.GONE)
+        v.setViewVisibility(R.id.odds_strip, View.GONE)
         val only = if (cfg.heat == "mine") team else null
-        val heat = HeatMap.heat(shots, awayAbbrev ?: "", only)
-        val grid = HeatMap.draw(heat, com.bit128.bitsports.ui.TeamInk.pair(awayAbbrev ?: "", homeAbbrev ?: ""))
-        v.setImageViewBitmap(R.id.board, LedBitmaps.render(grid, cell = 5, dots = cfg.board != "solid"))
-        oddsLine(context, v, team, g)
+        val station = team?.let { com.bit128.bitsports.nhl.NhlRadio.forTeam(it, PrefsStore(context).load().radioUrl) }
+        val radioOn = station?.stream != null && RadioService.state.value.let { it.url == station.stream && it.status == RadioService.Status.PLAYING }
+        v.setImageViewBitmap(R.id.board, LedBitmaps.render(LiveCards.heat(g!!, d, rows, only, radioOn), cell = 4, dots = cfg.board != "solid"))
         radioButton(context, v, team, g)
         return v
     }

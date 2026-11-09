@@ -24,6 +24,8 @@ object LiveCards {
     /** Rows the compact header takes, gap included. */
     const val HEADER = 30
 
+    private val SPEAKER = arrayOf("...#...", "..##.w.", "####..w", "####.w.", "####..w", "..##.w.", "...#...")
+
     private fun paste(g: LedGrid, src: LedGrid, y: Int, tag: Int) {
         for (yy in 0 until src.rows) {
             if (y + yy >= g.rows) break
@@ -36,7 +38,7 @@ object LiveCards {
     }
 
     /** VAN  1-3  EDM over the clock, with the power play beside it when there is one. */
-    fun header(g: LedGrid, game: Game) {
+    fun header(g: LedGrid, game: Game, roomLeft: Int = 0) {
         val (ai, hi) = TeamInk.pair(game.away.abbrev, game.home.abbrev)
         val a = game.away.score ?: 0; val h = game.home.score ?: 0
         g.text(game.away.abbrev, 2, 6, ai); g.textRight(game.home.abbrev, COLS - 3, 6, hi)
@@ -48,10 +50,12 @@ object LiveCards {
         g.text("$h", x0 + ("$a".length + 1) * step, 2, if (h >= a) HockeyBoard.WHITE else HockeyBoard.MUTED, 2)
         val clock = HockeyBoard.clockText(game)
         val banner = com.bit128.bitsports.nhl.Strengths.banner(game)?.text
-        g.textCenter(listOfNotNull(clock, banner).joinToString(" ").take(20), 19, if (banner != null) HockeyBoard.WARN else HockeyBoard.LIVE)
+        // [roomLeft] keeps the line clear of something at the left edge (the radio speaker), both sides alike.
+        val line = listOfNotNull(clock, banner).joinToString(" ").take(PixelFont.fits(COLS - 2 * roomLeft))
+        g.textCenter(line, 19, if (banner != null) HockeyBoard.WARN else HockeyBoard.LIVE)
     }
 
-    private fun base(game: Game, rows: Int) = LedGrid(COLS, rows).also { header(it, game) }
+    private fun base(game: Game, rows: Int, roomLeft: Int = 0) = LedGrid(COLS, rows).also { header(it, game, roomLeft) }
 
     /** 1. The arena jumbotron, then the period-by-period linescore under it. */
     fun jumbotron(game: Game, goals: List<GoalEvent>, accent: Int, rows: Int): LedGrid {
@@ -78,10 +82,12 @@ object LiveCards {
     }
 
     /** 2. The shot heat map, as big as the widget allows, under the score. */
-    fun heat(game: Game, d: GameDetail, rows: Int): LedGrid {
-        val g = base(game, rows)
-        val shots = com.bit128.bitsports.nhl.GameAnalysis.shots(d)
-        val rink = HeatMap.draw(HeatMap.heat(shots, game.away.abbrev), TeamInk.pair(game.away.abbrev, game.home.abbrev))
+    fun heat(game: Game, d: GameDetail?, rows: Int, onlyTeam: String? = null, radioOn: Boolean = false): LedGrid {
+        val g = base(game, rows, roomLeft = if (radioOn) 12 else 0)
+        // The radio's on: a little speaker beside the clock.
+        if (radioOn) g.sprite(SPEAKER, 2, 19, mapOf('#' to HockeyBoard.WHITE, 'w' to PixelArt.GOLD))
+        val shots = d?.let { com.bit128.bitsports.nhl.GameAnalysis.shots(it) }.orEmpty()
+        val rink = HeatMap.draw(HeatMap.heat(shots, game.away.abbrev, onlyTeam), TeamInk.pair(game.away.abbrev, game.home.abbrev))
         paste(g, rink, HEADER, 60_000)
         val y = HEADER + rink.rows + 3
         if (y + 7 <= rows) {

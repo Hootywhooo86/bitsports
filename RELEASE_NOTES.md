@@ -1,4 +1,10 @@
-## bitsports 0.12.2 — Matchup and Around the league widgets
+## bitsports 0.12.3 — the game-time heat map widget, with Listen live
+
+- **During the game, the score + heat map widget is one LED board** that fills the widget: the score and clock (with the power play when there is one) over the shot heat map, gold sparks for goals, and shots on goal for each team.
+- **Listen live sits right under the board**, as wide as it: **♪ LISTEN LIVE · 880 CHED**. Tap it and the radio call starts without opening the app; it turns red and reads **■ STOP**, and a little speaker shows by the clock while it plays.
+- Same widget all day: the **Matchup** before puck drop, the **heat map** during and after the game, **Around the league** on days off.
+
+## From 0.12.2 — Matchup and Around the league widgets
 
 The score + heat map widget and the team widget now fill their whole space before puck drop and on days off, with no black bands.
 
