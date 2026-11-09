@@ -9,8 +9,6 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * A team's next game, for the widgets on days it doesn't play: "UP NEXT · FRI 7:00 PM vs Flames".
@@ -18,17 +16,23 @@ import java.util.Locale
  * redraw after the phone restarts still has it without going online.
  */
 object UpNext {
+    val DAYS = listOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
+    private val MONTHS = listOf("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
+
     /** "TONIGHT 7:00 PM", "TOMORROW 7:00 PM", "FRI 7:00 PM", or "NOV 18 7:00 PM" a week or more out. */
     fun whenText(start: Instant, now: Instant = Instant.now(), zone: ZoneId = ZoneId.systemDefault()): String {
         val day = start.atZone(zone).toLocalDate()
         val today = now.atZone(zone).toLocalDate()
-        val time = DateTimeFormatter.ofPattern("h:mm a", Locale.CANADA).format(start.atZone(zone)).uppercase().replace(".", "")
+        // Spelled out by hand, so it reads the same on every phone and every Java version.
+        val t = start.atZone(zone)
+        val h = if (t.hour % 12 == 0) 12 else t.hour % 12
+        val time = "%d:%02d %s".format(java.util.Locale.ROOT, h, t.minute, if (t.hour < 12) "AM" else "PM")
         val days = Duration.between(today.atStartOfDay(), day.atStartOfDay()).toDays()
         val d = when {
             days <= 0L -> "TONIGHT"
             days == 1L -> "TOMORROW"
-            days < 7L -> DateTimeFormatter.ofPattern("EEE", Locale.CANADA).format(day).uppercase().replace(".", "")
-            else -> DateTimeFormatter.ofPattern("MMM d", Locale.CANADA).format(day).uppercase().replace(".", "")
+            days < 7L -> DAYS[day.dayOfWeek.value - 1]
+            else -> "${MONTHS[day.monthValue - 1]} ${day.dayOfMonth}"
         }
         return "$d $time"
     }

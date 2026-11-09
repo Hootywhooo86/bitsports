@@ -87,8 +87,7 @@ object ScoreboardLeds {
             // Up next on another day: the day goes first ("SAT 7PM"), dropped if it doesn't fit.
             !UpNext.isGameDay(game) -> {
                 val t = ScoreFormat.status(game).filterNot { it.isWhitespace() || it == '\u00A0' || it == '\u202F' }.uppercase().replace(":00", "")
-                val day = java.time.format.DateTimeFormatter.ofPattern("EEE", java.util.Locale.CANADA)
-                    .format(game.startUtc.atZone(java.time.ZoneId.systemDefault())).uppercase().replace(".", "")
+                val day = UpNext.DAYS[game.startUtc.atZone(java.time.ZoneId.systemDefault()).dayOfWeek.value - 1]
                 "$day $t" to HockeyBoard.MUTED
             }
             else -> ScoreFormat.status(game).filterNot { it.isWhitespace() || it == '\u00A0' || it == '\u202F' }.uppercase() to HockeyBoard.MUTED
