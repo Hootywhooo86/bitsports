@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">bitsports</string>
     <string name="widget_team_label">Team score</string>
+    <string name="widget_fantasy_label">Fantasy</string>
+    <string name="widget_fantasy_desc">Your fantasy lists: tonight\'s points, player by player, live.</string>
     <string name="widget_team_desc">Your team\'s game: the score, the clock and the puck drop.</string>
     <string name="widget_rink_label">Score + heat map</string>
     <string name="widget_rink_desc">The score over a 128-pixel rink: each team\'s shooting zones glow in its colours, goals spark white.</string>

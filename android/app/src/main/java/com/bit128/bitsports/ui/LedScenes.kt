@@ -51,6 +51,9 @@ object LedScenes {
         return g
     }
 
+    /** A one-line strip for the collapsed notification, for scenes built elsewhere. */
+    fun strip(text: String, color: Int): LedGrid = stripText(text, color)
+
     private fun scoreLine(game: Game, away: Int, home: Int) = "${game.away.abbrev} $away-$home ${game.home.abbrev}"
 
     // ---------- goal ----------

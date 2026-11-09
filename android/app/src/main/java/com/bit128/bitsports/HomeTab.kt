@@ -186,7 +186,7 @@ private fun AlertsOffBanner(vm: BitsportsViewModel) {
 }
 
 /** Words on the jumbotron, with a puck and two crossed sticks so it still reads as a rink board. */
-internal fun messageBoard(top: String, mid: String, bottom: String, accent: Int): LedGrid {
+fun messageBoard(top: String, mid: String, bottom: String, accent: Int): LedGrid {
     val g = LedGrid(HockeyBoard.COLS, HockeyBoard.ROWS)
     g.textCenter(top, 4, accent)
     if (mid.isNotEmpty()) {

@@ -27,6 +27,10 @@ interface NhlSource {
     suspend fun oddsFor(games: List<Game>): Map<Long, GameOdds> = odds()
     /** A scorer's regular-season career goals, counting [seasonGoals] for this season (null if unknown). */
     suspend fun careerGoals(playerId: Int, seasonGoals: Int): Int? = null
+    suspend fun searchPlayers(q: String): List<PlayerRef> = emptyList()
+    suspend fun boxScore(gameId: Long): Map<Int, StatLine> = emptyMap()
+    suspend fun pointStreak(playerId: Int): Int = 0
+    suspend fun injuries(): List<Injury> = emptyList()
 }
 
 class DirectNhlSource(
@@ -93,6 +97,15 @@ class DirectNhlSource(
     override suspend fun careerGoals(playerId: Int, seasonGoals: Int): Int? = try {
         NhlPlayer.careerGoals(get("$base/player/$playerId/landing"), seasonGoals)
     } catch (e: Exception) { null }
+
+    override suspend fun searchPlayers(q: String): List<PlayerRef> =
+        NhlFantasy.search(get("https://search.d3.nhle.com/api/v1/search/player?culture=en-us&limit=20&active=true&q=" + java.net.URLEncoder.encode(q, "UTF-8")))
+
+    override suspend fun boxScore(gameId: Long): Map<Int, StatLine> = NhlFantasy.boxScore(get("$base/gamecenter/$gameId/boxscore"), gameId)
+
+    override suspend fun injuries(): List<Injury> = Injuries.parse(get("$espn/injuries"))
+
+    override suspend fun pointStreak(playerId: Int): Int = NhlFantasy.pointStreak(get("$base/player/$playerId/game-log/now"))
 
     override suspend fun season(abbrev: String): List<ScheduleGame> =
         NhlSeasonParser.season(get("$base/club-schedule-season/${abbrev.uppercase()}/now"))

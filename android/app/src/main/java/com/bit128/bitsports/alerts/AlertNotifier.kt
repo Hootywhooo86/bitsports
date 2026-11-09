@@ -34,6 +34,7 @@ object AlertNotifier {
     private const val CH_PREGAME = "pregame"
     const val EXTRA_GAME = "openGame"
     const val EXTRA_CLIP = "playClip"
+    const val EXTRA_FANTASY = "openFantasy"
 
     fun ensureChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -196,6 +197,21 @@ object AlertNotifier {
             .animated(context, LedScenes.goal(g, game, prefs.accent.toInt(), special))
         if (g.clipUrl != null) b.addAction(0, "Watch the goal", clipIntent(context, g))
         post(context, ("g" + g.gameId + g.eventId).hashCode(), b.build())
+    }
+
+    /** A fantasy alert or report: plain title and text, with LED frames when they can be shown. */
+    fun fantasy(context: Context, id: Int, title: String, text: String, scene: LedScenes.Scene?, loud: Boolean = false) {
+        ensureChannels(context)
+        val b = NotificationCompat.Builder(context, if (loud) CH_GOALS_QUIET else CH_UPDATES)
+            .setSmallIcon(R.drawable.ic_stat_puck)
+            .setColor(0xFFFFFFFF.toInt())
+            .setAutoCancel(true)
+            .setContentTitle(title).setContentText(text)
+            .setContentIntent(PendingIntent.getActivity(context, id, Intent(context, MainActivity::class.java).putExtra(EXTRA_FANTASY, true)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+            .setPriority(if (loud) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
+        try { scene?.let { b.animated(context, it) } } catch (e: Exception) { AlertLog(context).failed("Fantasy LED failed, sent plain", e) }
+        post(context, id, b.build())
     }
 
     fun recap(context: Context, game: Game, label: String, text: String) = post(context, ("a" + game.id + label).hashCode(),

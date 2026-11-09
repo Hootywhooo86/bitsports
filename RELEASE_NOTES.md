@@ -1,4 +1,26 @@
-## bitsports 0.11.1 — Up next on the widgets
+## bitsports 0.12.0 — Fantasy, and all-LED widgets
+
+**Fantasy** (new tab at the bottom)
+- **Make as many lists as you want** ("My pool", "Family pool", "Waiver watch"). Search any NHL player by name and add them, from any team.
+- **Scored live all night** from every game's box score: goals, assists, +/-, PIM, power-play goals, shots, hits and blocks, plus wins, saves, goals against and shutouts for goalies.
+- **Scoring:** **Standard** (G 3, A 2, +/- 1, PPG 1, shots/hits/blocks/PIM 0.5; goalie W 4, save 0.2, GA -1, shutout 3), **Points** (goals and assists only), or **Custom** with your own number for every stat.
+- **Tonight panel:** how many of your players are playing, the first puck drop, your list's points so far and the MVP so far.
+- **Point-streak flames:** a pixel flame next to any player with a point in 3 or more straight games, taller every game.
+- **Line-mates:** tap a player to see who they've been on the ice with most tonight, from the NHL's shift chart.
+- **Alerts, with the app closed:**
+  - When one of your players scores, sets one up or gets the win or shutout, even when it's not your team's game.
+  - **OUT tonight** if one of them is scratched or on the injury list, around warm-ups.
+- **The Fantasy Report:** after the last game with one of your players, an animated LED report plays for each list, as a notification and in the app.
+  - A title card, then each player who played with their points rolling up like a slot machine.
+  - The **MVP in gold with a crown**, and a **rain cloud** for a zero.
+  - The list's total, with **fireworks** for a 20-point night.
+  - Replay it any time with **▶ Report**.
+
+**All-LED widgets**
+- **Team widget redesigned** as a little arena scoreboard in a pixel frame of your team's colour that **glows while you're winning**. It flips by itself: the score, the last goal, the live odds; on game day the matchup and countdown; between games what's up next. The radio button is still there on game nights.
+- **New Fantasy widget:** each of your lists on an LED board, flipping list to list. Each player row shows a live dot, tonight's line and the points, with the MVP in gold. It fits as many players as the widget is tall.
+
+## From 0.11.1 — Up next on the widgets
 
 - **No more "NO GAME".** On days your team doesn't play, the widgets show **UP NEXT**: the day and time ("FRI 5:00 PM", "TOMORROW 7:30 PM") and who it's against ("at Flames · in 4 days"). Tap it to open that game.
 - **Game day takes over automatically.** On the day of the game the widget switches to the game-day look: **GAME DAY**, puck-drop time and how long until it starts. The score + heat map widget shows the arena jumbotron with the puck-drop countdown in the last hour, and the radio button. Then it goes live.

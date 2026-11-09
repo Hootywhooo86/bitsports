@@ -71,6 +71,43 @@ class SpacingTest {
         assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
     }
 
+    @Test fun widgetBoards() {
+        val now = start.minusSeconds(3000)
+        for (g in allGames().filterIndexed { i, _ -> i % 9 == 0 }) for (team in listOf(g.away.abbrev, g.home.abbrev)) {
+            val goal = GoalEvent(g.id, 1, g.home.abbrev, names[0], 47, emptyList(), Strength.PP, "wrist", null, 4, "OT", "11:19", 10, 11, null)
+            for (share in listOf(null, 0.3f, 0.71f)) {
+                com.bit128.bitsports.widget.WidgetBoards.team(team, g, null, goal, share, HockeyBoard.WHITE, now).forEach { check("widget $team ${g.state}", it) }
+                com.bit128.bitsports.widget.WidgetBoards.team(team, null, g.copy(state = GameState.FUT), null, share, HockeyBoard.WHITE, start.minusSeconds(4 * 86_400)).forEach { check("widget next $team", it) }
+            }
+        }
+        com.bit128.bitsports.widget.WidgetBoards.team("EDM", null, null, null, null, HockeyBoard.WHITE).forEach { check("widget empty", it) }
+        val box = com.bit128.bitsports.nhl.NhlFantasy.boxScore(com.bit128.bitsports.fixture("box-2026020239.json"), 2026020239L)
+        val players = box.keys.take(14).mapIndexed { i, id -> com.bit128.bitsports.nhl.PlayerRef(id, names[i % names.size], if (i % 2 == 0) "EDM" else "NJD", if (i % 5 == 0) "G" else "C") }
+        val n = com.bit128.bitsports.fantasy.FantasyNight.night(com.bit128.bitsports.fantasy.FantasyList("a", "The Very Long Family Pool Name", players),
+            listOf(game("EDM", "NJD", GameState.LIVE, 2, 3).copy(id = 2026020239L)), box, com.bit128.bitsports.fantasy.Scoring.STANDARD)
+        for (rows in 2..12) check("fantasy widget $rows", com.bit128.bitsports.widget.WidgetBoards.fantasy(n, rows))
+        assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
+    }
+
+    @Test fun fantasyReport() {
+        val box = com.bit128.bitsports.nhl.NhlFantasy.boxScore(com.bit128.bitsports.fixture("box-2026020239.json"), 2026020239L)
+        val g = game("EDM", "NJD", GameState.OFF, 2, 3)
+        val players = box.keys.take(30).mapIndexed { i, id -> com.bit128.bitsports.nhl.PlayerRef(id, names[i % names.size], if (i % 2 == 0) "EDM" else "NJD", if (i % 7 == 0) "G" else "C") }
+        val list = com.bit128.bitsports.fantasy.FantasyList("a", "The Very Long Family Pool Name", players)
+        for (sc in com.bit128.bitsports.fantasy.Scoring.PRESETS) {
+            val n = com.bit128.bitsports.fantasy.FantasyNight.night(list, listOf(g.copy(id = 2026020239L)), box, sc)
+            check("title", FantasyReportLeds.title(list.name, "NOV 9"))
+            for (f in 0..FantasyReportLeds.COUNT + 12) {
+                n.rows.forEach { r -> check("player ${r.player.name} f$f", FantasyReportLeds.player(r, r == n.mvp, f)) }
+                check("total f$f", FantasyReportLeds.total(n, f))
+                check("total big f$f", FantasyReportLeds.total(n.copy(rows = n.rows.map { it.copy(points = 9.0) }), f))
+            }
+            n.rows.forEach { r -> for (w in listOf("GOAL", "ASSIST", "2 ASSISTS", "WIN", "SHUTOUT")) check("alert $w", FantasyReportLeds.alert(r, w)) }
+            players.forEach { p -> check("out", FantasyReportLeds.out(p, "INJURED RESERVE")) }
+        }
+        assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
+    }
+
     @Test fun finalMoments() {
         val stars = listOf("Connor McDavid", "Stuart Skinner", "Alexandre Texier-Brodeur")
         for ((a, h) in pairs) for ((sa, sh) in listOf(4 to 0, 0 to 3, 12 to 11, 5 to 2)) for (cup in listOf(false, true)) for (n in listOf(0, 3)) {

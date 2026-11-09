@@ -63,6 +63,12 @@
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_scores_info" />
         </receiver>
+        <receiver android:name=".widget.FantasyWidget" android:exported="false" android:label="@string/widget_fantasy_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_fantasy_info" />
+        </receiver>
         <receiver android:name=".widget.WidgetTicker" android:exported="false" />
         <activity
             android:name=".widget.WidgetSetupActivity"
@@ -88,6 +94,10 @@
             android:name=".radio.RadioService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <receiver
+            android:name=".fantasy.FantasyWatch$Receiver"
+            android:exported="false" />
 
         <receiver
             android:name=".alerts.AlertScheduler$AlarmReceiver"

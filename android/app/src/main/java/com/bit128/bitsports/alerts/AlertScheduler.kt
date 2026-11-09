@@ -46,6 +46,8 @@ object AlertScheduler {
         scope.launch {
             try {
                 scheduleDaily(app)
+                // Fantasy players are watched on their own schedule, whoever they play for.
+                com.bit128.bitsports.fantasy.FantasyWatch.schedule(app)
                 val followed = followedAbbrevs(app)
                 if (followed.isEmpty()) {
                     AlertLog(app).scheduled("No NHL team followed")

@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
     /** A game to open, from a notification tap. The screen picks it up once the view model exists. */
     private var pendingGame by mutableStateOf<Long?>(null)
     private var pendingClip by mutableStateOf<Int?>(null)
+    private var pendingFantasy by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +53,7 @@ class MainActivity : ComponentActivity() {
         AlertScheduler.refresh(applicationContext)
         pendingGame = gameFrom(intent)
         pendingClip = clipFrom(intent)
+        pendingFantasy = intent?.getBooleanExtra(AlertNotifier.EXTRA_FANTASY, false) == true
         val store = TeamsStore(applicationContext)
         val prefsStore = PrefsStore(applicationContext)
         setContent {
@@ -60,6 +62,14 @@ class MainActivity : ComponentActivity() {
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
                     BitsportsViewModel(store, prefsStore, applicationContext) as T
             })
+            // From a fantasy alert or the Fantasy Report: the Fantasy tab, and the report if it's waiting.
+            LaunchedEffect(pendingFantasy) {
+                if (pendingFantasy) {
+                    vm.tab = Tab.FANTASY
+                    if (com.bit128.bitsports.fantasy.FantasyWatch.pendingReport(applicationContext) != null) vm.showFantasyReport()
+                    pendingFantasy = false
+                }
+            }
             LaunchedEffect(pendingGame) {
                 pendingClip?.let { vm.pendingClip = it; pendingClip = null }
                 pendingGame?.let { vm.openGame(it); pendingGame = null }
@@ -91,6 +101,7 @@ class MainActivity : ComponentActivity() {
                             AppShell(vm)
                         }
                         vm.finalMoment?.let { f -> FinalMoment(f, onDone = { vm.finalMoment = null }) }
+                        vm.fantasyReport?.let { r -> com.bit128.bitsports.ui.FantasyReportMoment(r, onDone = { vm.fantasyReport = null }) }
                         vm.clipReel?.let { r ->
                             BackHandler { vm.clipReel = null }
                             com.bit128.bitsports.ui.ClipPlayer(r, ui.goalStyle, onIndex = { vm.clipReel = r.copy(index = it) }, onClose = { vm.clipReel = null })
@@ -108,6 +119,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         gameFrom(intent)?.let { pendingGame = it }
         clipFrom(intent)?.let { pendingClip = it }
+        if (intent.getBooleanExtra(AlertNotifier.EXTRA_FANTASY, false)) pendingFantasy = true
     }
 
     private fun clipFrom(intent: Intent?): Int? = intent?.getIntExtra(AlertNotifier.EXTRA_CLIP, -1)?.takeIf { it > 0 }
@@ -129,6 +141,7 @@ fun AppShell(vm: BitsportsViewModel) {
             when (vm.tab) {
                 Tab.HOME -> HomeTab(vm)
                 Tab.SPORTS -> SportsTab(vm)
+                Tab.FANTASY -> FantasyTab(vm)
                 Tab.SETTINGS -> SettingsTab(vm)
             }
         }
@@ -186,7 +199,7 @@ private fun BottomNav(vm: BitsportsViewModel) {
     Column {
         HorizontalDivider(color = Line, thickness = 1.dp)
         Row(Modifier.fillMaxWidth().background(Ground).height(64.dp)) {
-            listOf(Tab.HOME to "home", Tab.SPORTS to "sports", Tab.SETTINGS to "settings").forEach { (tab, icon) ->
+            listOf(Tab.HOME to "home", Tab.SPORTS to "sports", Tab.FANTASY to "fantasy", Tab.SETTINGS to "settings").forEach { (tab, icon) ->
                 val on = vm.tab == tab
                 Column(
                     Modifier.weight(1f).fillMaxHeight().clickable { vm.tab = tab },

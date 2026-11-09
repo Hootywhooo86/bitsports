@@ -40,7 +40,7 @@ import java.time.Instant
 const val MAX_PER_SPORT = 4
 const val ALL_TAB = "all"
 
-enum class Tab { HOME, SPORTS, SETTINGS }
+enum class Tab { HOME, SPORTS, FANTASY, SETTINGS }
 
 /** What a feed's note should say: [text] in warning colour only when the numbers are really stale. */
 data class FeedNote(val text: String, val warn: Boolean)
@@ -189,6 +189,91 @@ class BitsportsViewModel(
      * Polls only while the app is on screen. Android cuts a backgrounded app's network, so polling
      * there just piles up failures; coming back refreshes at once instead.
      */
+    // --- Fantasy ------------------------------------------------------------------------------
+
+    private val fantasyStore = com.bit128.bitsports.fantasy.FantasyStore(appContext)
+    var fantasyLists by mutableStateOf(fantasyStore.lists())
+        private set
+    var fantasyScoring by mutableStateOf(fantasyStore.scoring())
+        private set
+    /** Tonight's box-score lines for every player in a game today, by player id. */
+    var fantasyLines by mutableStateOf<Map<Int, com.bit128.bitsports.nhl.StatLine>>(emptyMap())
+    /** Games in a row with a point, for the streak flames. */
+    var fantasyStreaks by mutableStateOf<Map<Int, Int>>(emptyMap())
+    var fantasyInjuries by mutableStateOf<List<com.bit128.bitsports.nhl.Injury>>(emptyList())
+    var fantasyReport by mutableStateOf<List<com.bit128.bitsports.fantasy.FantasyNight.ListNight>?>(null)
+    private var streaksDay: String? = null
+
+    private fun listsChanged() {
+        fantasyLists = fantasyStore.lists()
+        com.bit128.bitsports.fantasy.FantasyWatch.schedule(appContext)
+        viewModelScope.launch { refreshFantasyOnce(force = true) }
+    }
+
+    fun createList(name: String) = fantasyStore.create(name).also { listsChanged() }
+    fun renameList(id: String, name: String) { fantasyStore.rename(id, name); listsChanged() }
+    fun deleteList(id: String) { fantasyStore.delete(id); listsChanged() }
+    fun addPlayer(listId: String, p: com.bit128.bitsports.nhl.PlayerRef) { fantasyStore.add(listId, p); listsChanged() }
+    fun removePlayer(listId: String, id: Int) { fantasyStore.remove(listId, id); listsChanged() }
+    fun setScoring(s: com.bit128.bitsports.fantasy.Scoring) { fantasyStore.setScoring(s); fantasyScoring = s }
+
+    suspend fun searchPlayers(q: String): List<com.bit128.bitsports.nhl.PlayerRef> =
+        if (q.trim().length < 2) emptyList() else try { source.searchPlayers(q.trim()) } catch (e: Exception) { emptyList() }
+
+    fun fantasyGames(): List<Game> {
+        val teams = fantasyStore.allPlayers().map { it.team }.toSet()
+        return games.filter { it.away.abbrev in teams || it.home.abbrev in teams }
+    }
+
+    private suspend fun refreshFantasyOnce(force: Boolean = false) {
+        val players = fantasyStore.allPlayers()
+        if (players.isEmpty()) return
+        val lines = HashMap<Int, com.bit128.bitsports.nhl.StatLine>()
+        for (g in fantasyGames().filter { it.state.isLive || it.state.isOver }) {
+            try { lines.putAll(source.boxScore(g.id)) } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
+        }
+        if (lines.isNotEmpty() || force) fantasyLines = lines
+        val day = java.time.LocalDate.now().toString()
+        if (streaksDay != day || force) {
+            val s = HashMap<Int, Int>()
+            for (p in players.filter { !it.isGoalie }) {
+                try { s[p.id] = source.pointStreak(p.id) } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
+            }
+            fantasyStreaks = s
+            fantasyInjuries = try { source.injuries() } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e; fantasyInjuries }
+            streaksDay = day
+        }
+    }
+
+    /** While the Fantasy tab is open: every ~20 s with a game on, every 2 minutes otherwise. */
+    private suspend fun pollFantasy() {
+        while (true) {
+            if (tab == Tab.FANTASY) refreshFantasyOnce()
+            delay(if (tab == Tab.FANTASY && fantasyGames().any { it.state.isLive }) 20_000 else 120_000)
+        }
+    }
+
+    /** Builds tonight's report for every list and shows it (from the end-of-night alert or on demand). */
+    fun showFantasyReport() {
+        viewModelScope.launch {
+            refreshFantasyOnce()
+            val nights = fantasyStore.lists().filter { it.players.isNotEmpty() }
+                .map { com.bit128.bitsports.fantasy.FantasyNight.night(it, fantasyGames(), fantasyLines, fantasyScoring) }
+                .filter { n -> n.rows.any { it.line != null } }
+            com.bit128.bitsports.fantasy.FantasyWatch.reportShown(appContext)
+            if (nights.isNotEmpty()) fantasyReport = nights
+        }
+    }
+
+    /** Who a player skated with most tonight, from the game's shift chart. */
+    suspend fun linemates(p: com.bit128.bitsports.nhl.PlayerRef): List<Pair<String, Int>> {
+        val g = com.bit128.bitsports.fantasy.FantasyNight.gameFor(p, games)?.takeIf { it.state.isLive || it.state.isOver } ?: return emptyList()
+        return try {
+            val x = source.extras(g.id)
+            com.bit128.bitsports.fantasy.FantasyNight.linemates(x.shifts, p.id, (x.away.goalies + x.home.goalies).map { it.id }.toSet())
+        } catch (e: Exception) { emptyList() }
+    }
+
     fun onForeground() {
         // Opening the app mid-game starts the watcher if the background start was blocked.
         AlertScheduler.refresh(appContext)
@@ -197,7 +282,10 @@ class BitsportsViewModel(
         pollJobs = listOf(
             viewModelScope.launch { pollGames() },
             viewModelScope.launch { pollEspn() },
+            viewModelScope.launch { pollFantasy() },
         )
+        // Last night's Fantasy Report, if it hasn't been seen in the app yet.
+        com.bit128.bitsports.fantasy.FantasyWatch.pendingReport(appContext)?.let { showFantasyReport() }
         openGameId?.let { if (detailJob?.isActive != true) openGame(it) }
     }
 
