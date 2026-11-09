@@ -1,4 +1,17 @@
-## bitsports 0.12.1 — cleaner widgets between games
+## bitsports 0.12.2 — Matchup and Around the league widgets
+
+The score + heat map widget and the team widget now fill their whole space before puck drop and on days off, with no black bands.
+
+- **Game day: the Matchup board.**
+  - Both teams' pixel jerseys and records, with a big VS.
+  - The puck-drop time and a countdown ("IN 8H 20M").
+  - **How the last meeting went** ("LAST MEET W 4-1"), from this season's schedule.
+  - The live odds bar along the bottom.
+  - It sizes itself to your widget, so a shorter widget drops the least important line.
+- **No game: Around the league.** Your next game on top ("NEXT @ NYR FRI"), then the rest of the NHL's games with live scores, start times and finals, in team colours.
+- At puck drop the widgets switch to live as before: the heat map, and the flipping scoreboard on the team widget.
+
+## From 0.12.1 — cleaner widgets between games
 
 - **No more double info.** Before puck drop and between games, the score + heat map widget drops its text header and lets the LED board say it all.
 - **A better UP NEXT board** for days without a game: who's next in their colours ("@ NYR"), the day and time with how long until it starts, and **how the last game went** ("LAST W 4-2 VAN", green for a win). The team widget uses the same board.

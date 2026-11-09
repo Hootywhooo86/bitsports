@@ -78,6 +78,10 @@ object UpNext {
     fun saveLast(context: Context, team: String, text: String) = prefs(context).edit().putString("$team.last", text).apply()
     fun loadLast(context: Context, team: String): String? = prefs(context).getString("$team.last", null)
 
+    fun saveMeeting(context: Context, team: String, opp: String, gameId: Long, text: String) =
+        prefs(context).edit().putString("$team.meet.$opp.$gameId", text).apply()
+    fun loadMeeting(context: Context, team: String, opp: String, gameId: Long): String? = prefs(context).getString("$team.meet.$opp.$gameId", null)
+
     /** When it was last looked up, to refetch a few times a day (times and dates can move). */
     fun fetchedAt(context: Context, team: String): Long = prefs(context).getLong("$team.at", 0L)
 }

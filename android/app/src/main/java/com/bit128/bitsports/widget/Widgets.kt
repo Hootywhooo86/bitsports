@@ -98,6 +98,10 @@ object Widgets {
     fun any(context: Context) = ids(context, TeamWidget::class.java).isNotEmpty() || ids(context, RinkWidget::class.java).isNotEmpty() ||
         ids(context, ScoresWidget::class.java).isNotEmpty() || ids(context, FantasyWidget::class.java).isNotEmpty()
 
+    /** League standings for records on the matchup board, refreshed every few hours. */
+    @Volatile private var standings: List<com.bit128.bitsports.nhl.StandingRow> = emptyList()
+    @Volatile private var standingsAt = 0L
+
     /** Tonight's box-score lines for players on your fantasy lists, from the last fetch. */
     @Volatile private var fantasyLines: Map<Int, com.bit128.bitsports.nhl.StatLine> = emptyMap()
 
@@ -145,6 +149,18 @@ object Widgets {
                     // And how the last one went, for the board between games.
                     (week.filter { it.state.isOver }.maxByOrNull { it.startUtc } ?: season().filter { it.state.isOver }.maxByOrNull { it.startUtc })
                         ?.let { UpNext.saveLast(app, t, UpNext.lastText(t, it)) }
+                }
+                // Game day: records for the matchup board, and how the last meeting went.
+                if (System.currentTimeMillis() - standingsAt > 3 * 3600_000L || standings.isEmpty()) {
+                    runCatching { source.standings() }.getOrNull()?.let { standings = it; standingsAt = System.currentTimeMillis() }
+                }
+                for (t in teams) {
+                    val tonight = gameFor(games, t)?.takeIf { !it.state.isOver } ?: UpNext.load(app, t)?.takeIf { UpNext.isGameDay(it) } ?: continue
+                    val opp = if (tonight.home.abbrev == t) tonight.away.abbrev else tonight.home.abbrev
+                    if (UpNext.loadMeeting(app, t, opp, tonight.id) != null) continue
+                    val met = runCatching { source.season(t) }.getOrNull().orEmpty().map { it.game }
+                        .filter { it.state.isOver && (it.away.abbrev == opp || it.home.abbrev == opp) }.maxByOrNull { it.startUtc }
+                    UpNext.saveMeeting(app, t, opp, tonight.id, met?.let { WidgetCards.lastMeeting(t, it) } ?: "FIRST MEETING")
                 }
                 // The fantasy widget: box scores for games with your list players in them.
                 if (ids(app, FantasyWidget::class.java).isNotEmpty()) {
@@ -253,7 +269,7 @@ object Widgets {
             val upcoming = team?.takeIf { gameFor(list, it) == null }?.let { UpNext.load(context, it) }
             val game = team?.let { gameFor(list, it) } ?: upcoming?.takeIf { UpNext.isGameDay(it) }
             val next = upcoming?.takeIf { game == null }
-            manager.updateAppWidget(id, if (tall) teamLed(context, team, game, next) else teamRow(context, team, game, next))
+            manager.updateAppWidget(id, if (tall) teamLed(context, team, game, next, list, rowsFor(manager, id)) else teamRow(context, team, game, next))
         }
         ids(context, RinkWidget::class.java).forEach { id ->
             val cfg = prefs.load(id)
@@ -262,7 +278,7 @@ object Widgets {
             val upcoming = team?.takeIf { gameFor(list, it) == null }?.let { UpNext.load(context, it) }
             val game = team?.let { gameFor(list, it) } ?: upcoming?.takeIf { UpNext.isGameDay(it) }
             val next = upcoming?.takeIf { game == null }
-            manager.updateAppWidget(id, rinkViews(context, team, game, game?.let { details[it.id] }, cfg, next))
+            manager.updateAppWidget(id, rinkViews(context, team, game, game?.let { details[it.id] }, cfg, next, list, rowsFor(manager, id)))
         }
         val followed = AlertScheduler.followedAbbrevs(context)
         val accent = PrefsStore(context).load().accent.toInt().takeIf { it != 0 } ?: INK
@@ -276,6 +292,33 @@ object Widgets {
         scheduleTick(context, list)
     }
 
+    /** How many LED rows fill this widget (it's 128 LEDs across, so its shape decides). */
+    private fun rowsFor(manager: AppWidgetManager, id: Int): Int {
+        val o = manager.getAppWidgetOptions(id)
+        val w = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250).coerceAtLeast(110) - 20
+        val h = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 180).coerceAtLeast(60) - 24
+        return WidgetCards.rowsFor(w, h)
+    }
+
+    /**
+     * The tall boards: the Matchup before puck drop on game day, Around the league on a day
+     * without your team. Null when it's neither (live or final), or nothing's known yet.
+     */
+    private fun card(context: Context, team: String, g: Game?, next: Game?, games: List<Game>, rows: Int): com.bit128.bitsports.ui.LedGrid? {
+        val prefs = PrefsStore(context).load()
+        return when {
+            g != null && !g.state.isLive && !g.state.isOver -> {
+                val opp = if (g.home.abbrev == team) g.away.abbrev else g.home.abbrev
+                fun rec(a: String) = standings.firstOrNull { it.abbrev == a }?.record
+                val share = odds[g.id]?.takeIf { prefs.showOdds }?.let { OddsHistory.share(it) }
+                WidgetCards.matchup(g, rec(g.away.abbrev), rec(g.home.abbrev), UpNext.loadMeeting(context, team, opp, g.id), share,
+                    WidgetCards.countdownText(g.startUtc), rows)
+            }
+            g == null -> WidgetCards.aroundTheLeague(team, next, games, AlertScheduler.followedAbbrevs(context), prefs.accent.toInt(), rows)
+            else -> null
+        }
+    }
+
     /** Frames into a flipper: each LED board its own image. */
     private fun flipper(context: Context, v: RemoteViews, frames: List<com.bit128.bitsports.ui.LedGrid>, cell: Int) {
         v.removeAllViews(R.id.frames)
@@ -287,7 +330,7 @@ object Widgets {
     }
 
     /** The team widget as a little arena scoreboard in a team-colour frame, flipping by itself. */
-    private fun teamLed(context: Context, team: String?, g: Game?, next: Game?): RemoteViews {
+    private fun teamLed(context: Context, team: String?, g: Game?, next: Game?, games: List<Game>, rows: Int): RemoteViews {
         val v = RemoteViews(context.packageName, R.layout.widget_team_led)
         v.setOnClickPendingIntent(android.R.id.background, open(context, g ?: next))
         val accent = PrefsStore(context).load().accent.toInt()
@@ -295,7 +338,8 @@ object Widgets {
         else {
             val last = g?.let { details[it.id] }?.let { GameAnalysis.goals(it).lastOrNull() }
             val share = g?.let { odds[it.id] }?.takeIf { PrefsStore(context).load().showOdds }?.let { OddsHistory.share(it) }
-            WidgetBoards.team(team, g, next, last, share, accent, last = UpNext.loadLast(context, team))
+            // Before puck drop and between games, one tall board fills the widget; live and final, the flipping scoreboard.
+            card(context, team, g, next, games, rows)?.let { listOf(it) } ?: WidgetBoards.team(team, g, next, last, share, accent, last = UpNext.loadLast(context, team))
         }
         flipper(context, v, frames, cell = 4)
         radioButton(context, v, team, g)
@@ -451,7 +495,8 @@ object Widgets {
         return v
     }
 
-    private fun rinkViews(context: Context, team: String?, g: Game?, d: GameDetail?, cfg: WidgetConfig, next: Game? = null): RemoteViews {
+    private fun rinkViews(context: Context, team: String?, g: Game?, d: GameDetail?, cfg: WidgetConfig, next: Game? = null,
+                          games: List<Game> = emptyList(), rows: Int = 104): RemoteViews {
         val v = RemoteViews(context.packageName, R.layout.widget_rink)
         v.setOnClickPendingIntent(android.R.id.background, open(context, g ?: next))
         val shown = g ?: next
@@ -506,10 +551,11 @@ object Widgets {
             v.setViewVisibility(R.id.header, View.GONE)
             v.setViewVisibility(R.id.status_row, View.GONE)
             val accent = PrefsStore(context).load().accent.toInt()
-            val board = if (g == null && next != null && team != null) WidgetBoards.upNext(team, next, UpNext.loadLast(context, team))
-            else HockeyBoard.build(HockeyBoard.input(shown!!, accent))
-            v.setImageViewBitmap(R.id.board, LedBitmaps.render(board, cell = 5, dots = cfg.board != "solid"))
-            oddsLine(context, v, team, g)
+            val board = team?.let { card(context, it, g, next, games, rows) } ?: HockeyBoard.build(HockeyBoard.input(shown!!, accent))
+            v.setImageViewBitmap(R.id.board, LedBitmaps.render(board, cell = 4, dots = cfg.board != "solid"))
+            // The matchup board carries the odds itself.
+            v.setViewVisibility(R.id.odds, View.GONE)
+            v.setViewVisibility(R.id.odds_strip, View.GONE)
             radioButton(context, v, team, g)
             return v
         }

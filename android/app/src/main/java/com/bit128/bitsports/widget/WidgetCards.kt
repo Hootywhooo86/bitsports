@@ -57,20 +57,44 @@ object WidgetCards {
         g.textOwners += strip.textOwners.map { it + 30_000 }
     }
 
+    /** "IN 8H 20M", "IN 20M", "PUCK DROP". */
+    fun countdownText(start: java.time.Instant, now: java.time.Instant = java.time.Instant.now()): String {
+        val m = java.time.Duration.between(now, start).toMinutes()
+        return when { m <= 0 -> "PUCK DROP"; m < 60 -> "IN ${m}M"; else -> "IN ${m / 60}H ${m % 60}M" }
+    }
+
+    /** "LAST MEET W 4-1" from [team]'s side, for their last game against the same opponent. */
+    fun lastMeeting(team: String, g: Game): String {
+        val home = g.home.abbrev == team
+        val us = (if (home) g.home.score else g.away.score) ?: 0
+        val them = (if (home) g.away.score else g.home.score) ?: 0
+        return "LAST MEET ${if (us > them) "W" else "L"} $us-$them"
+    }
+
+    /** How many LED rows make a 128-wide board fill a widget this shape. */
+    fun rowsFor(widthDp: Int, heightDp: Int): Int = (heightDp.toFloat() / widthDp * COLS).toInt().coerceIn(60, 140)
+
     // ---------- game day ----------
 
     /** A: both jerseys big, records, VS, puck drop, the last meeting and the odds. */
-    fun matchup(game: Game, away: TeamLine, home: TeamLine, lastMeeting: String?, oddsShare: Float?, countdown: String, rows: Int = 104): LedGrid {
+    fun matchup(game: Game, awayRecord: String?, homeRecord: String?, lastMeeting: String?, oddsShare: Float?, countdown: String, rows: Int = 104): LedGrid {
         val g = LedGrid(COLS, rows)
         val (ai, hi) = TeamInk.pair(game.away.abbrev, game.home.abbrev)
         jersey(g, game.away.abbrev, 2, 2); jersey(g, game.home.abbrev, COLS - 34, 2)
         g.textCenter("VS", 8, HockeyBoard.WHITE, 3)
         g.text(game.away.abbrev, 9, 30, ai); g.textRight(game.home.abbrev, COLS - 10, 30, hi)
-        g.text(away.record, 2, 40, HockeyBoard.MUTED); g.textRight(home.record, COLS - 3, 40, HockeyBoard.MUTED)
-        g.textCenter(when_(game), 52, HockeyBoard.WHITE, 2)
-        g.textCenter(countdown, 70, HockeyBoard.MUTED)
-        lastMeeting?.let { g.textCenter(it.take(20), 80, if (it.contains(" W ")) 0xFF7ED957.toInt() else HockeyBoard.MUTED) }
-        oddsShare?.let { stripAt(g, OddsMeter.strip(game.away.abbrev, game.home.abbrev, ai, hi, it), rows - 12) }
+        awayRecord?.let { g.text(it, 2, 40, HockeyBoard.MUTED) }; homeRecord?.let { g.textRight(it, COLS - 3, 40, HockeyBoard.MUTED) }
+        // Below the jerseys, top to bottom as far as the widget is tall: puck drop (big if
+        // there's room), the countdown, the last meeting, the odds bar at the very bottom.
+        var y = 50
+        val oddsRows = if (oddsShare != null) 12 else 0
+        fun room(h: Int) = y + h <= rows - oddsRows
+        val time = when_(game)
+        if (room(14) && rows - oddsRows - y >= 14 + 10) { g.textCenter(time, y, HockeyBoard.WHITE, 2); y += 18 }
+        else if (room(7)) { g.textCenter(time, y, HockeyBoard.WHITE); y += 10 }
+        if (room(7)) { g.textCenter(countdown, y, HockeyBoard.MUTED); y += 10 }
+        lastMeeting?.let { if (room(7)) { g.textCenter(it.take(20), y, if (it.contains(" W ")) 0xFF7ED957.toInt() else HockeyBoard.MUTED); y += 10 } }
+        oddsShare?.let { stripAt(g, OddsMeter.strip(game.away.abbrev, game.home.abbrev, ai, hi, it), rows - 10) }
         return g
     }
 

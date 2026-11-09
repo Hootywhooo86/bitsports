@@ -91,6 +91,18 @@ class SpacingTest {
         val n = com.bit128.bitsports.fantasy.FantasyNight.night(com.bit128.bitsports.fantasy.FantasyList("a", "The Very Long Family Pool Name", players),
             listOf(game("EDM", "NJD", GameState.LIVE, 2, 3).copy(id = 2026020239L)), box, com.bit128.bitsports.fantasy.Scoring.STANDARD)
         for (rows in 2..12) check("fantasy widget $rows", com.bit128.bitsports.widget.WidgetBoards.fantasy(n, rows))
+        val league = allGames().filterIndexed { i, _ -> i % 11 == 0 }
+        for (rows in listOf(60, 80, 104, 120, 140)) {
+            for ((a, h) in pairs) for (share in listOf(null, 0.12f, 0.5f, 0.9f)) for (rec in listOf(null to null, "10-7-1" to "12-3-3", "41-30-11" to "38-34-10")) {
+                val g = game(a, h, GameState.FUT, null, null)
+                for (cd in listOf("PUCK DROP", "IN 20M", "IN 11H 59M")) for (meet in listOf(null, "LAST MEET W 12-11", "LAST MEET L 0-4", "FIRST MEETING"))
+                    check("matchup $a-$h $rows", com.bit128.bitsports.widget.WidgetCards.matchup(g, rec.first, rec.second, meet, share, cd, rows))
+            }
+            for ((a, h) in pairs) {
+                check("league $rows", com.bit128.bitsports.widget.WidgetCards.aroundTheLeague(a, game(a, h, GameState.FUT, null, null), league, setOf(a), HockeyBoard.WHITE, rows))
+                check("league none $rows", com.bit128.bitsports.widget.WidgetCards.aroundTheLeague(a, null, league, setOf(a), HockeyBoard.WHITE, rows))
+            }
+        }
         assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
     }
 
