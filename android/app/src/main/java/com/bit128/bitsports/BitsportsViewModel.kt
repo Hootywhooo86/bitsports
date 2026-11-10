@@ -137,6 +137,10 @@ class BitsportsViewModel(
     var goalMoment by mutableStateOf<GoalEvent?>(null)
     /** What makes the goal moment special (hat trick, milestone...), and which side scored. */
     var goalSpecial by mutableStateOf<com.bit128.bitsports.ui.GoalSpecial?>(null)
+    /** The open game's starting lines, by team, with the units that are new since last game. */
+    var startingLines by mutableStateOf<Map<String, Pair<com.bit128.bitsports.nhl.StartingLines, Set<String>>>>(emptyMap())
+    private val linesStore = com.bit128.bitsports.nhl.LinesStore(appContext)
+
     /** A big save or a hit, flashed on the open game's jumbotron. */
     var boardFlash by mutableStateOf<com.bit128.bitsports.ui.HockeyBoard.Flash?>(null)
     /** The final-horn moment, when one of your games ends while you're watching it. */
@@ -457,6 +461,7 @@ class BitsportsViewModel(
             detail = null
             extras = null
             odds = null
+            startingLines = emptyMap()
             oddsHistory = com.bit128.bitsports.nhl.OddsHistory.get(appContext, id)
         }
         openGameId = id
@@ -496,6 +501,16 @@ class BitsportsViewModel(
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                     }
+                }
+                // Starting lines: when the game opens, then every ~10 minutes until puck drop.
+                val g0 = detail?.game
+                if (g0 != null && (tick == 0 || (!g0.state.isLive && !g0.state.isOver && tick % 10 == 0))) {
+                    val got = HashMap(startingLines)
+                    for (t in listOf(g0.away.abbrev, g0.home.abbrev)) {
+                        try { source.startingLines(t)?.let { got[t] = it to linesStore.update(it) } }
+                        catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
+                    }
+                    startingLines = got
                 }
                 if (ui.showOdds && (live || tick % 4 == 0)) {
                     try {

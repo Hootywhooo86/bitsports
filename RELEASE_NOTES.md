@@ -1,4 +1,14 @@
-## bitsports 0.12.4 — the heat-map board all game day, filling the widget
+## bitsports 0.13.0 — starting lines
+
+- **Starting lines on the game screen** (Lineups tab), for both teams, as they're reported before the game (morning skate, warm-ups). They come from Daily Faceoff, with who reported them and when.
+  - **Forward lines L1–L4** and **D pairs D1–D3**.
+  - **The starting goalie** (STARTS) and the backup.
+  - **Power-play units PP1/PP2** and **penalty-kill units PK1/PK2**.
+  - **Who's out** (injured) and **?** for a game-time decision.
+  - **NEW** on any line that wasn't together last game.
+- They check again every ~10 minutes until puck drop, so late changes show up.
+
+## From 0.12.4 — the heat-map board all game day, filling the widget
 
 - **One look for all of game day** on the score + heat map widget:
   - **Before puck drop:** VS with the puck-drop time and countdown over the empty rink.

@@ -31,6 +31,8 @@ interface NhlSource {
     suspend fun boxScore(gameId: Long): Map<Int, StatLine> = emptyMap()
     suspend fun pointStreak(playerId: Int): Int = 0
     suspend fun injuries(): List<Injury> = emptyList()
+    /** The lines a team says it's starting with tonight, once they're reported. */
+    suspend fun startingLines(abbrev: String): StartingLines? = null
 }
 
 class DirectNhlSource(
@@ -102,6 +104,11 @@ class DirectNhlSource(
         NhlFantasy.search(get("https://search.d3.nhle.com/api/v1/search/player?culture=en-us&limit=20&active=true&q=" + java.net.URLEncoder.encode(q, "UTF-8")))
 
     override suspend fun boxScore(gameId: Long): Map<Int, StatLine> = NhlFantasy.boxScore(get("$base/gamecenter/$gameId/boxscore"), gameId)
+
+    override suspend fun startingLines(abbrev: String): StartingLines? {
+        val team = NhlTeams.byAbbrev(abbrev) ?: return null
+        return StartingLinesParser.parse(get("https://www.dailyfaceoff.com/teams/${StartingLinesParser.slug(team.fullName)}/line-combinations"), abbrev)
+    }
 
     override suspend fun injuries(): List<Injury> = Injuries.parse(get("$espn/injuries"))
 

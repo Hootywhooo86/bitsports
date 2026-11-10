@@ -97,7 +97,10 @@ fun GameScreen(vm: BitsportsViewModel, onBack: () -> Unit) {
             Spacer(Modifier.height(24.dp))
             when (tab) {
                 GameTab.GAME -> GameTabContent(game, d, x) { goals, goal -> vm.playClips(game, goals, goal) }
-                GameTab.LINEUPS -> LineupsTab(game, x)
+                GameTab.LINEUPS -> {
+                    StartingLinesView(game, vm.startingLines)
+                    LineupsTab(game, x)
+                }
                 GameTab.PLAYS -> PlaysTab(game, d)
                 GameTab.STATS -> StatsTab(vm, game, d, x)
             }
