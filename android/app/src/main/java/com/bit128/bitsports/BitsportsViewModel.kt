@@ -137,6 +137,10 @@ class BitsportsViewModel(
     var goalMoment by mutableStateOf<GoalEvent?>(null)
     /** What makes the goal moment special (hat trick, milestone...), and which side scored. */
     var goalSpecial by mutableStateOf<com.bit128.bitsports.ui.GoalSpecial?>(null)
+    /** MoneyPuck's season numbers by team, for the tape (once a day). */
+    var tape by mutableStateOf<Map<String, com.bit128.bitsports.nhl.Tape>>(emptyMap())
+    private var tapeDay: String? = null
+
     /** The open game's starting lines, by team, with the units that are new since last game. */
     var startingLines by mutableStateOf<Map<String, Pair<com.bit128.bitsports.nhl.StartingLines, Set<String>>>>(emptyMap())
     private val linesStore = com.bit128.bitsports.nhl.LinesStore(appContext)
@@ -511,6 +515,10 @@ class BitsportsViewModel(
                         catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
                     }
                     startingLines = got
+                }
+                if (tapeDay != java.time.LocalDate.now().toString()) {
+                    try { tape = source.tape(); tapeDay = java.time.LocalDate.now().toString() }
+                    catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
                 }
                 if (ui.showOdds && (live || tick % 4 == 0)) {
                     try {

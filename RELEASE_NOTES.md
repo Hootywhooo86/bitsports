@@ -1,4 +1,23 @@
-## bitsports 0.13.0 — starting lines
+## bitsports 0.14.0 — win probability, expected goals and the tape
+
+New on the game screen's **Stats** tab:
+
+- **Win probability** (from puck drop):
+  - **Your team TO WIN %**, big, with the other side's % and a split bar in team colours.
+  - **"A goal now makes it X%"** for whoever's behind.
+  - A **pixel chart of the whole game**, filled in your team's colour while you're favoured, with gold dots at goals.
+  - **Excitement pace** compared with every game so far this season, the **biggest swing** (who scored it and when), **your low point**, how much of the game you've been **favoured**, and **at puck drop vs now**.
+  - **Biggest movers:** the players whose goals moved it most.
+  - **Pressure bars:** expected goals in every 2 minutes, your team up and theirs down.
+- **Shots and chances**, with **expected goals (xG)** from bitsports' own model, fitted on this season's ~23,000 NHL shots (distance, angle, shot type, power play):
+  - an xG race chart through the game;
+  - close-range chances and average shot distance;
+  - power play, faceoff % and turnover margin;
+  - save %, goals saved above expected, high-danger saves;
+  - hits, blocks and PIM.
+- **The tape:** both teams' season so far, from MoneyPuck's free team data (credited on screen): **chance share** (5-on-5 xG%), **finishing** (goals vs expected), **bounces** and **PDO**, each with its league rank and a pixel bar from behind to ahead.
+
+## From 0.13.0 — starting lines
 
 - **Starting lines on the game screen** (Lineups tab), for both teams, as they're reported before the game (morning skate, warm-ups). They come from Daily Faceoff, with who reported them and when.
   - **Forward lines L1–L4** and **D pairs D1–D3**.

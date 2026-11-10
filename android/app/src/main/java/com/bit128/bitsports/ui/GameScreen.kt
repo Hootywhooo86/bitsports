@@ -724,6 +724,20 @@ private val MINOR = setOf("faceoff", "stoppage", "giveaway", "takeaway", "blocke
 
 @Composable
 private fun StatsTab(vm: BitsportsViewModel, g: Game, d: GameDetail?, x: GameExtras?) {
+    // The analytics: win probability and chances once the game's on, the season tape any time.
+    val mine = listOf(g.away.abbrev, g.home.abbrev).firstOrNull { it in vm.followedAbbrevs() }
+    if (d != null && (g.state.isLive || g.state.isOver)) {
+        // At puck drop: the odds' home share (the first odds sample of the game), if any.
+        val homeShare = vm.oddsHistory.firstOrNull()?.let { 1.0 - it.awayShare } ?: vm.odds?.let { com.bit128.bitsports.nhl.OddsHistory.share(it) }?.let { 1.0 - it }
+        WinProbCard(g, d, homeShare, mine)
+        Spacer(Modifier.height(32.dp))
+        ChancesCard(g, d, x)
+        Spacer(Modifier.height(32.dp))
+    }
+    if (vm.tape.isNotEmpty()) {
+        TapeCard(g, vm.tape)
+        Spacer(Modifier.height(32.dp))
+    }
     val stats = x?.gameStats.orEmpty()
     if (stats.isNotEmpty()) {
         SectionHead("TEAM STATS", "${g.away.abbrev} · ${g.home.abbrev}")

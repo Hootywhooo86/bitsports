@@ -33,6 +33,8 @@ interface NhlSource {
     suspend fun injuries(): List<Injury> = emptyList()
     /** The lines a team says it's starting with tonight, once they're reported. */
     suspend fun startingLines(abbrev: String): StartingLines? = null
+    /** MoneyPuck's season numbers for every team (credit MoneyPuck.com). */
+    suspend fun tape(): Map<String, Tape> = emptyMap()
 }
 
 class DirectNhlSource(
@@ -108,6 +110,11 @@ class DirectNhlSource(
     override suspend fun startingLines(abbrev: String): StartingLines? {
         val team = NhlTeams.byAbbrev(abbrev) ?: return null
         return StartingLinesParser.parse(get("https://www.dailyfaceoff.com/teams/${StartingLinesParser.slug(team.fullName)}/line-combinations"), abbrev)
+    }
+
+    override suspend fun tape(): Map<String, Tape> {
+        val season = java.time.LocalDate.now().let { if (it.monthValue >= 9) it.year else it.year - 1 }
+        return TapeParser.parse(get("https://moneypuck.com/moneypuck/playerData/seasonSummary/$season/regular/teams.csv"))
     }
 
     override suspend fun injuries(): List<Injury> = Injuries.parse(get("$espn/injuries"))
