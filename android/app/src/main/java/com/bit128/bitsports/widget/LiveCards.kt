@@ -1,5 +1,6 @@
 package com.bit128.bitsports.widget
 
+import java.time.Instant
 import com.bit128.bitsports.nhl.Game
 import com.bit128.bitsports.nhl.GameDetail
 import com.bit128.bitsports.nhl.GoalEvent
@@ -26,12 +27,12 @@ object LiveCards {
 
     private val SPEAKER = arrayOf("...#...", "..##.w.", "####..w", "####.w.", "####..w", "..##.w.", "...#...")
 
-    private fun paste(g: LedGrid, src: LedGrid, y: Int, tag: Int) {
+    private fun paste(g: LedGrid, src: LedGrid, y: Int, tag: Int, x0: Int = 0) {
         for (yy in 0 until src.rows) {
             if (y + yy >= g.rows) break
             for (x in 0 until src.cols) {
                 val v = src[x, yy]
-                if (v != 0) { g.cells[(y + yy) * g.cols + x] = v; g.owner[(y + yy) * g.cols + x] = src.owner[yy * src.cols + x] + tag }
+                if (v != 0 && x0 + x in 0 until g.cols) { val i = (y + yy) * g.cols + x0 + x; g.cells[i] = v; g.owner[i] = src.owner[yy * src.cols + x] + tag }
             }
         }
         g.textOwners += src.textOwners.map { it + tag }
@@ -108,10 +109,11 @@ object LiveCards {
      * meeting) under it if there's room.
      */
     fun heat(game: Game, d: GameDetail?, rows: Int, onlyTeam: String? = null, radioOn: Boolean = false, below: String? = null): LedGrid {
-        val g = LedGrid(COLS, rows)
         val started = game.state.isLive || game.state.isOver
         val rink = HeatMap.draw(HeatMap.heat(d?.let { com.bit128.bitsports.nhl.GameAnalysis.shots(it) }.orEmpty(), game.away.abbrev, onlyTeam),
             TeamInk.pair(game.away.abbrev, game.home.abbrev))
+        if (rows < HEADER - 2 + rink.rows) return compactHeat(game, rink, rows)
+        val g = LedGrid(COLS, rows)
         // The line under the rink: shots on goal (or, before puck drop, the last meeting) if it fits.
         val lineBelow = HEADER - 2 + rink.rows + 9 <= rows
         header(g, game, sogBeside = !lineBelow, radioOn = radioOn)
@@ -125,6 +127,79 @@ object LiveCards {
             else text?.let { g.textCenter(it.take(20), at[1], if (it.contains(" W ")) 0xFF7ED957.toInt() else HockeyBoard.MUTED) }
         }
         return g
+    }
+
+    /**
+     * A short, wide widget: one line on top (teams at the ends, the time or score and clock in the
+     * middle) and the whole rink shrunk to the rows left, so it's never cut off. Live, the score
+     * sits big at each side of the rink with the shots under it when there's room.
+     */
+    private fun compactHeat(game: Game, rink: LedGrid, rows: Int): LedGrid {
+        val g = LedGrid(COLS, rows)
+        val (ai, hi) = TeamInk.pair(game.away.abbrev, game.home.abbrev)
+        val started = game.state.isLive || game.state.isOver
+        g.text(game.away.abbrev, 2, 1, ai); g.textRight(game.home.abbrev, COLS - 3, 1, hi)
+        val h = (rows - 10).coerceIn(8, rink.rows)
+        val small = shrink(rink, h)
+        val x0 = (COLS - small.cols) / 2
+        val side = x0 - 4
+        val a = "${game.away.score ?: 0}"; val hs = "${game.home.score ?: 0}"
+        val bigSides = started && side >= PixelFont.width(maxOf(a, hs, compareBy { it.length }), 2) + 2 && h >= 16
+        val clock = if (started) HockeyBoard.clockText(game) else UpNext.whenText(game.startUtc).substringAfter(' ')
+        val middle = when {
+            !started -> if (java.time.Instant.now() >= game.startUtc) "PUCK DROP" else clock
+            bigSides -> clock
+            else -> "$a-$hs $clock"
+        }
+        val edge = maxOf(PixelFont.width(game.away.abbrev), PixelFont.width(game.home.abbrev)) + 6
+        val line = middle.take(PixelFont.fits(COLS - 2 * edge)).let { if (it.length < middle.length) middle.substringBefore(' ').take(PixelFont.fits(COLS - 2 * edge)) else it }
+        g.textCenter(line, 1, if (started) HockeyBoard.LIVE else HockeyBoard.MUTED)
+        val y0 = 10 + (rows - 10 - h) / 2
+        paste(g, small, y0, 60_000, x0)
+        // Before puck drop the sides say when: PUCK DROP · IN 1H 9M.
+        val left = Instant.now().let { java.time.Duration.between(it, game.startUtc).toMinutes() }
+        if (!started && left > 0 && h >= 18) {
+            val cd = if (left < 60) "${left}M" else "${left / 60}H ${left % 60}M"
+            val sides = listOf(listOf("PUCK", "DROP"), listOf("IN", cd))
+            if (sides.flatten().all { PixelFont.width(it) + 4 <= side }) {
+                val sy = y0 + (h - 16) / 2
+                sides.forEachIndexed { k, ls -> ls.forEachIndexed { j, t ->
+                    val cx = if (k == 0) x0 / 2 else x0 + small.cols + (COLS - x0 - small.cols) / 2
+                    g.text(t, cx - PixelFont.width(t) / 2, sy + j * 9, if (k == 1 && j == 1) HockeyBoard.WHITE else HockeyBoard.MUTED)
+                } }
+            }
+        }
+        if (bigSides) {
+            val sy = y0 + (h - 14) / 2 - (if (h >= 26) 4 else 0)
+            val am = (game.away.score ?: 0) >= (game.home.score ?: 0); val hm = (game.home.score ?: 0) >= (game.away.score ?: 0)
+            g.text(a, (x0 - PixelFont.width(a, 2)) / 2, sy, if (am) ai else HockeyBoard.MUTED, 2)
+            g.text(hs, x0 + small.cols + (COLS - x0 - small.cols - PixelFont.width(hs, 2)) / 2, sy, if (hm) hi else HockeyBoard.MUTED, 2)
+            if (h >= 26) {
+                val l = "${game.away.sog ?: 0}"; val r = "${game.home.sog ?: 0}"
+                g.text(l, (x0 - PixelFont.width(l)) / 2, sy + 18, HockeyBoard.DIM)
+                g.text(r, x0 + small.cols + (COLS - x0 - small.cols - PixelFont.width(r)) / 2, sy + 18, HockeyBoard.DIM)
+            }
+        }
+        return g
+    }
+
+    /** The rink at [h] rows, same shape; each LED keeps the brightest of the ones it covers, so lines and heat survive. */
+    internal fun shrink(src: LedGrid, h: Int): LedGrid {
+        if (h >= src.rows) return src
+        val w = (h * src.cols + src.rows / 2) / src.rows
+        val out = LedGrid(w, h)
+        fun lum(c: Int) = ((c shr 16) and 0xFF) * 3 + ((c shr 8) and 0xFF) * 6 + (c and 0xFF)
+        for (y in 0 until h) for (x in 0 until w) {
+            val sy0 = y * src.rows / h; val sy1 = maxOf(sy0 + 1, (y + 1) * src.rows / h)
+            val sx0 = x * src.cols / w; val sx1 = maxOf(sx0 + 1, (x + 1) * src.cols / w)
+            var best = 0; var bl = -1; var bo = 0
+            for (yy in sy0 until sy1) for (xx in sx0 until sx1) {
+                val c = src[xx, yy]; val l = lum(c)
+                if (l > bl) { bl = l; best = c; bo = src.owner[yy * src.cols + xx] }
+            }
+            out.cells[y * w + x] = best; out.owner[y * w + x] = bo
+        }
+        return out
     }
 
     /** 3. The WIN-O-METER under the score. */

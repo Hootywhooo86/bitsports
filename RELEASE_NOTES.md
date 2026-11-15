@@ -1,4 +1,9 @@
-## bitsports 0.14.0 — win probability, expected goals and the tape
+## bitsports 0.14.1 — the whole rink on a short widget
+
+- The game-day widget no longer cuts the rink in half when the widget is short and wide. The board follows the widget's real shape, and when it's short the whole rink shrinks to fit, with the teams and time (or score and clock) on one line above it.
+- Before puck drop the sides say "PUCK DROP · IN 1H 9M". Live, the score sits big on each side of the rink, with shots under it when there's room.
+
+## From 0.14.0 — win probability, expected goals and the tape
 
 New on the game screen's **Stats** tab:
 
