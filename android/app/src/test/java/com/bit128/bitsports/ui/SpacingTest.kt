@@ -106,9 +106,17 @@ class SpacingTest {
         assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
     }
 
+    @Test fun leagueAnySize() {
+        val league = allGames().filter { it.state == GameState.LIVE }.take(8)
+        for (rows in listOf(40, 48, 56, 180, 240)) for ((a, h) in pairs) {
+            check("league $rows", com.bit128.bitsports.widget.WidgetCards.aroundTheLeague(a, game(a, h, GameState.FUT, null, null), league, setOf(a), HockeyBoard.WHITE, rows))
+        }
+        assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())
+    }
+
     @Test fun liveCards() {
         val shots = (0 until 40).map { com.bit128.bitsports.nhl.ShotMark(if (it % 2 == 0) "EDM" else "CGY", 40 + it, (it * 7) % 70 - 35, it % 9 == 0, 1, null) }
-        for (g in allGames().filterIndexed { i, _ -> i % 4 == 0 }) for (rows in listOf(24, 30, 36, 44, 52, 60, 70, 80, 87, 91, 96, 120, 140)) for (on in listOf(false, true)) {
+        for (g in allGames().filterIndexed { i, _ -> i % 4 == 0 }) for (rows in listOf(24, 30, 36, 44, 52, 60, 70, 80, 87, 91, 96, 120, 140, 180, 240)) for (on in listOf(false, true)) {
             check("live heat ${g.away.abbrev}-${g.home.abbrev} ${g.situation} $rows", com.bit128.bitsports.widget.LiveCards.heat(g, null, rows, radioOn = on, below = "LAST MEET W 12-11"))
         }
         assertTrue(failures.take(15).joinToString("\n"), failures.isEmpty())

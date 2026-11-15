@@ -1,4 +1,11 @@
-## bitsports 0.14.1 — the whole rink on a short widget
+## bitsports 0.14.2 — resize the rink widget any way you like
+
+- The game-day rink widget now resizes much further in both directions, down to about 2 cells wide and under 2 rows tall, and as big as your home screen allows.
+- The board redraws to the new shape as soon as you let go: a short widget gets the compact one-line layout, and a tall one gets the full layout with the score, rink and shots spread out to fill it.
+- On days without a game, "Around the NHL" fits short widgets too, instead of being squashed.
+- The listen-live button stays under the board at every size.
+
+## From 0.14.1 — the whole rink on a short widget
 
 - The game-day widget no longer cuts the rink in half when the widget is short and wide. The board follows the widget's real shape, and when it's short the whole rink shrinks to fit, with the teams and time (or score and clock) on one line above it.
 - Before puck drop the sides say "PUCK DROP · IN 1H 9M". Live, the score sits big on each side of the rink, with shots under it when there's room.
