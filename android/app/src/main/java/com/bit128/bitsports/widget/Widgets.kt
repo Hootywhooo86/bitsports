@@ -570,7 +570,7 @@ object Widgets {
                 val on = station.stream != null && RadioService.state.value.let { it.url == station.stream && it.status == RadioService.Status.PLAYING }
                 LiveCards.heat(g, null, rows, radioOn = on, below = UpNext.loadMeeting(context, team, opp, g.id))
             } else team?.let { card(context, it, g, next, games, rows.coerceAtLeast(40)) } ?: HockeyBoard.build(HockeyBoard.input(shown!!, accent))
-            v.setImageViewBitmap(R.id.board, LedBitmaps.render(board, cell = 4, dots = cfg.board != "solid"))
+            v.setImageViewBitmap(R.id.board, LedBitmaps.render(board, cell = if (rows > 170) 3 else 4, dots = cfg.board == "dots"))
             // The matchup board carries the odds itself.
             v.setViewVisibility(R.id.odds, View.GONE)
             v.setViewVisibility(R.id.odds_strip, View.GONE)
@@ -579,7 +579,7 @@ object Widgets {
         }
         if (g == null) {
             // Nothing known yet (no game today and the next one not looked up): the empty rink.
-            v.setImageViewBitmap(R.id.board, LedBitmaps.render(com.bit128.bitsports.ui.PixelRink.copy(), cell = 5, dots = cfg.board != "solid"))
+            v.setImageViewBitmap(R.id.board, LedBitmaps.render(com.bit128.bitsports.ui.PixelRink.copy().also { it.detail = com.bit128.bitsports.ui.LedGrid.Detail(com.bit128.bitsports.ui.PixelRink.render(512, 216), 0, 0, 4) }, cell = 4, dots = cfg.board == "dots"))
             radioButton(context, v, team, null)
             return v
         }
@@ -592,7 +592,7 @@ object Widgets {
         val only = if (cfg.heat == "mine") team else null
         val station = team?.let { com.bit128.bitsports.nhl.NhlRadio.forTeam(it, PrefsStore(context).load().radioUrl) }
         val radioOn = station?.stream != null && RadioService.state.value.let { it.url == station.stream && it.status == RadioService.Status.PLAYING }
-        v.setImageViewBitmap(R.id.board, LedBitmaps.render(LiveCards.heat(g!!, d, rows, only, radioOn), cell = 4, dots = cfg.board != "solid"))
+        v.setImageViewBitmap(R.id.board, LedBitmaps.render(LiveCards.heat(g!!, d, rows, only, radioOn), cell = if (rows > 170) 3 else 4, dots = cfg.board == "dots"))
         radioButton(context, v, team, g)
         return v
     }

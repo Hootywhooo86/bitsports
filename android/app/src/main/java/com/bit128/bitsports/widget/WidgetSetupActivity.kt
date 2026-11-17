@@ -93,7 +93,7 @@ private fun SetupScreen(isRink: Boolean, start: WidgetConfig, followed: List<Str
                 Spacer(Modifier.height(20.dp))
                 Text("Board", color = TextInk, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(10.dp))
-                Segmented(listOf("LED", "Solid"), if (cfg.board == "solid") 1 else 0) { cfg = cfg.copy(board = if (it == 1) "solid" else "led") }
+                Segmented(listOf("Smooth", "LED dots"), if (cfg.board == "dots") 1 else 0) { cfg = cfg.copy(board = if (it == 1) "dots" else "smooth") }
             }
 
             Spacer(Modifier.height(28.dp))
@@ -145,13 +145,11 @@ private fun BoardPreview(cfg: WidgetConfig, followed: List<String>) {
     val other = if (mine == "CGY") "EDM" else "CGY"
     val bmp = remember(cfg, mine) {
         val sample = sampleShots(mine, other)
-        LedBitmaps.render(
-            HeatMap.draw(
-                HeatMap.heat(sample, awayAbbrev = mine, onlyTeam = if (cfg.heat == "mine") mine else null),
-                com.bit128.bitsports.ui.TeamInk.pair(mine, other),
-            ),
-            cell = 5, dots = cfg.board != "solid",
-        )
+        val heat = HeatMap.heat(sample, awayAbbrev = mine, onlyTeam = if (cfg.heat == "mine") mine else null)
+        val inks = com.bit128.bitsports.ui.TeamInk.pair(mine, other)
+        val rink = HeatMap.draw(heat, inks)
+        if (cfg.board != "dots") rink.detail = com.bit128.bitsports.ui.LedGrid.Detail(HeatMap.drawFine(heat, inks, rink.cols * 4, rink.rows * 4), 0, 0, 4)
+        LedBitmaps.render(rink, cell = 4, dots = cfg.board == "dots")
     }
     Column {
         Image(

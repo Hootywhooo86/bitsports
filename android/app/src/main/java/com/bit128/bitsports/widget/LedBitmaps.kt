@@ -31,6 +31,20 @@ object LedBitmaps {
             if (dots) c.drawRoundRect(l, t, l + size, t + size, cell / 4f, cell / 4f, p)
             else c.drawRect(l, t, l + size, t + size, p)
         }
+        // The smooth board: a finer picture (the rink) over its cells, in solid pixels.
+        grid.detail?.takeIf { !dots }?.let { d ->
+            val f = cell.toFloat() / d.scale
+            val ox = d.x * cell.toFloat(); val oy = d.y * cell.toFloat()
+            p.isAntiAlias = false
+            p.color = GROUND
+            c.drawRect(ox, oy, ox + d.grid.cols * f, oy + d.grid.rows * f, p)
+            for (y in 0 until d.grid.rows) for (x in 0 until d.grid.cols) {
+                val v = d.grid[x, y]
+                if (v == 0 || v == BLACK) continue
+                p.color = v
+                c.drawRect(ox + x * f, oy + y * f, ox + (x + 1) * f, oy + (y + 1) * f, p)
+            }
+        }
         return bmp
     }
 }

@@ -83,6 +83,55 @@ object HeatMap {
         return g
     }
 
+    /**
+     * The same heat on a finer rink ([w] x [h], a whole multiple of 128 x 54 wide): heat is read
+     * between the coarse pixels so it fades smoothly instead of in blocks, and goals are drawn
+     * at the matching size.
+     */
+    fun drawFine(heat: Heat, inks: Pair<Int, Int>, w: Int, h: Int): LedGrid {
+        val g = PixelRink.render(w, h)
+        val (awayLed, homeLed) = inks
+        val awayMax = heat.away.maxOrNull() ?: 0f
+        val homeMax = heat.home.maxOrNull() ?: 0f
+        val cw = PixelRink.W; val ch = PixelRink.H
+        fun sample(f: FloatArray, x: Float, y: Float): Float {
+            val x0 = x.toInt().coerceIn(0, cw - 1); val y0 = y.toInt().coerceIn(0, ch - 1)
+            val x1 = (x0 + 1).coerceAtMost(cw - 1); val y1 = (y0 + 1).coerceAtMost(ch - 1)
+            val tx = (x - x0).coerceIn(0f, 1f); val ty = (y - y0).coerceIn(0f, 1f)
+            val top = f[y0 * cw + x0] * (1 - tx) + f[y0 * cw + x1] * tx
+            val bot = f[y1 * cw + x0] * (1 - tx) + f[y1 * cw + x1] * tx
+            return top * (1 - ty) + bot * ty
+        }
+        for (y in 0 until h) for (x in 0 until w) {
+            val base = g[x, y]
+            if (base == PixelRink.OUTSIDE || base == PixelRink.BOARDS || base == PixelRink.NET) continue
+            val sx = (x + 0.5f) * cw / w - 0.5f; val sy = (y + 0.5f) * ch / h - 0.5f
+            // Keep each team's heat in its own end, as on the coarse rink.
+            val a = if (x < w / 2 && awayMax > 0f) sample(heat.away, sx, sy) / awayMax else 0f
+            val hh = if (x >= w / 2 && homeMax > 0f) sample(heat.home, sx, sy) / homeMax else 0f
+            val (f, led) = if (a >= hh) a to awayLed else hh to homeLed
+            if (f < BANDS[0]) continue
+            if (f < BANDS[1] && base != PixelRink.ICE) continue
+            val t = 0.30f + (f - BANDS[0]) / (1f - BANDS[0]) * 0.70f
+            var c = blend(PixelRink.ICE, led, t.coerceIn(0f, 1f))
+            if (f > BANDS[4]) c = blend(c, 0xFFFFFFFF.toInt(), (f - BANDS[4]) / (1f - BANDS[4]) * 0.28f)
+            g.put(x, y, c)
+        }
+        // Goals at half the coarse size: still the brightest thing on the ice, but finer.
+        val k = maxOf(1, (w / cw + 1) / 2)
+        heat.goals.forEachIndexed { i, (cx, cy) ->
+            val fine = LedGrid(9, 9)
+            goalMark(fine, 4, 4, if (heat.goalTeams[i]) awayLed else homeLed)
+            val ox = cx * w / cw + k / 2 - 4 * k; val oy = cy * h / ch + k / 2 - 4 * k
+            for (yy in 0 until 9) for (xx in 0 until 9) {
+                val v = fine[xx, yy]; if (v == 0) continue
+                if (v == PixelRink.OUTSIDE && g[(ox + xx * k).coerceIn(0, w - 1), (oy + yy * k).coerceIn(0, h - 1)] == PixelRink.BOARDS) continue
+                g.fill(ox + xx * k, oy + yy * k, k, k, v)
+            }
+        }
+        return g
+    }
+
     const val GOAL = 0xFFFFD95E.toInt()
     private val SPARK = listOf(0 to 0, -1 to 0, 1 to 0, 0 to -1, 0 to 1, -2 to 0, 2 to 0, 0 to -2, 0 to 2)
     private val CORNERS = listOf(-1 to -1, 1 to -1, -1 to 1, 1 to 1)

@@ -1,4 +1,10 @@
-## bitsports 0.14.2 — resize the rink widget any way you like
+## bitsports 0.15.0 — smooth pixel rink
+
+- The rink widget now draws its rink at four times the detail: thin crisp lines, round faceoff circles and boards, heat that fades softly instead of in blocks, and finer goal sparks. It still looks like pixel art, just not chunky.
+- The new default board is **Smooth**, with solid pixels and no LED gaps. The old round-LED look is still there as **LED dots** in the widget's settings.
+- The score, clock and text keep their pixel font.
+
+## From 0.14.2 — resize the rink widget any way you like
 
 - The game-day rink widget now resizes much further in both directions, down to about 2 cells wide and under 2 rows tall, and as big as your home screen allows.
 - The board redraws to the new shape as soon as you let go: a short widget gets the compact one-line layout, and a tall one gets the full layout with the score, rink and shots spread out to fill it.

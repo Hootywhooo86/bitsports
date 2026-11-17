@@ -8,6 +8,13 @@ class LedGrid(val cols: Int, val rows: Int) {
     val cells = IntArray(cols * rows)
 
     /**
+     * A finer picture laid over part of the board (the smooth widget's rink): [Detail.grid] is
+     * [Detail.scale] times as fine and covers the cells from ([Detail.x], [Detail.y]).
+     */
+    var detail: Detail? = null
+    class Detail(val grid: LedGrid, val x: Int, val y: Int, val scale: Int)
+
+    /**
      * Which drawing call lit each LED (0 = none), and which calls were text. Lets a test check
      * that no letter ever touches a line, stripe, bar or another piece of text.
      */

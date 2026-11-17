@@ -7,7 +7,7 @@ import com.bit128.bitsports.alerts.AlertScheduler
 data class WidgetConfig(
     val team: String?,          // NHL abbrev; null = your first followed NHL team
     val heat: String = "both",  // rink: "both" teams, or "mine" only
-    val board: String = "led",  // rink: "led" cells with gaps, or "solid"
+    val board: String = "smooth",  // rink: "smooth" fine pixels, or "dots" (round LEDs with gaps)
 )
 
 class WidgetPrefs(private val context: Context) {
@@ -16,7 +16,7 @@ class WidgetPrefs(private val context: Context) {
     fun load(id: Int) = WidgetConfig(
         team = prefs.getString("$id.team", null),
         heat = prefs.getString("$id.heat", "both") ?: "both",
-        board = prefs.getString("$id.board", "led") ?: "led",
+        board = if (prefs.getString("$id.board", null) == "dots") "dots" else "smooth",
     )
 
     fun save(id: Int, c: WidgetConfig) {

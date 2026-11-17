@@ -24,6 +24,8 @@ object LiveCards {
     const val COLS = 128
     /** Rows the compact header takes, gap included. */
     const val HEADER = 30
+    /** The smooth widget draws the rink this many times finer than the board's LEDs. */
+    const val FINE = 4
 
     private val SPEAKER = arrayOf("...#...", "..##.w.", "####..w", "####.w.", "####..w", "..##.w.", "...#...")
 
@@ -110,9 +112,12 @@ object LiveCards {
      */
     fun heat(game: Game, d: GameDetail?, rows: Int, onlyTeam: String? = null, radioOn: Boolean = false, below: String? = null): LedGrid {
         val started = game.state.isLive || game.state.isOver
-        val rink = HeatMap.draw(HeatMap.heat(d?.let { com.bit128.bitsports.nhl.GameAnalysis.shots(it) }.orEmpty(), game.away.abbrev, onlyTeam),
-            TeamInk.pair(game.away.abbrev, game.home.abbrev))
-        if (rows < HEADER - 2 + rink.rows) return compactHeat(game, rink, rows)
+        val heat = HeatMap.heat(d?.let { com.bit128.bitsports.nhl.GameAnalysis.shots(it) }.orEmpty(), game.away.abbrev, onlyTeam)
+        val inks = TeamInk.pair(game.away.abbrev, game.home.abbrev)
+        val rink = HeatMap.draw(heat, inks)
+        if (rows < HEADER - 2 + rink.rows) return compactHeat(game, rink, rows).also { c ->
+            c.detail?.let { d0 -> c.detail = LedGrid.Detail(HeatMap.drawFine(heat, inks, d0.grid.cols * FINE, d0.grid.rows * FINE), d0.x, d0.y, FINE) }
+        }
         val g = LedGrid(COLS, rows)
         // The line under the rink: shots on goal (or, before puck drop, the last meeting) if it fits.
         val lineBelow = HEADER - 2 + rink.rows + 9 <= rows
@@ -121,6 +126,7 @@ object LiveCards {
         val heights = if (lineBelow && (started || text != null)) listOf(rink.rows, 7) else listOf(rink.rows)
         val at = WidgetCards.spread(heights, rows - HEADER + 2).map { it + HEADER - 2 }
         paste(g, rink, at[0], 60_000)
+        g.detail = LedGrid.Detail(HeatMap.drawFine(heat, inks, rink.cols * FINE, rink.rows * FINE), 0, at[0], FINE)
         if (heights.size == 2) {
             val (ai, hi) = TeamInk.pair(game.away.abbrev, game.home.abbrev)
             if (started) { g.text("SOG ${game.away.sog ?: 0}", 2, at[1], ai); g.textRight("${game.home.sog ?: 0} SOG", COLS - 3, at[1], hi) }
@@ -156,6 +162,8 @@ object LiveCards {
         g.textCenter(line, 1, if (started) HockeyBoard.LIVE else HockeyBoard.MUTED)
         val y0 = 10 + (rows - 10 - h) / 2
         paste(g, small, y0, 60_000, x0)
+        // A placeholder: heat() swaps in the fine rink at this spot and size.
+        g.detail = LedGrid.Detail(small, x0, y0, 1)
         // Before puck drop the sides say when: PUCK DROP · IN 1H 9M.
         val left = Instant.now().let { java.time.Duration.between(it, game.startUtc).toMinutes() }
         if (!started && left > 0 && h >= 18) {
